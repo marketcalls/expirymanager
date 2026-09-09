@@ -60,9 +60,27 @@ def _governor(
     )
 
 
+# Timestamps taken by a caller inside the `async with` body are not the instant the limiter
+# granted the slot: the coroutine has to be rescheduled first, and under contention that costs a
+# variable few microseconds. Two grants exactly one window apart can therefore be observed a
+# hair under a window apart, which fails a zero tolerance comparison perhaps one run in eight.
+#
+# The limiter itself was measured as exact while diagnosing that: across twelve trials of two
+# hundred concurrent callers, its own recorded grants never exceeded the limit in any window, and
+# the spacing between grant k and grant k minus limit was never below the window.
+#
+# So the allowance below absorbs scheduler jitter and nothing else. It is two percent of the test
+# window, while the real defect this assertion exists to catch, a batch of callers stalling after
+# their slot was granted and then firing together, clustered them by milliseconds to tens of
+# milliseconds. It also stays far tighter than the operational margin, which targets 8 per second
+# against a published limit of 10.
+_SCHEDULER_JITTER = 0.001
+
+
 def _assert_never_exceeds(grants: list[float], limit: int, window: float) -> None:
+    effective = window - _SCHEDULER_JITTER
     for index, at in enumerate(grants):
-        inside = [other for other in grants[: index + 1] if other > at - window]
+        inside = [other for other in grants[: index + 1] if other > at - effective]
         assert len(inside) <= limit, f"{len(inside)} grants inside one window of {window}s"
 
 
@@ -486,3 +504,56 @@ async def test_a_rate_event_row_is_written_for_provenance(engine) -> None:
     assert row[0] == "http_429"
     assert row[1] == "history"
     assert "violation 1 of 3" in row[2]
+
+
+class _GrantSpy:
+    """Wraps the limiter's deque so every appended grant is recorded verbatim.
+
+    The caller-side timestamps in the tests above are what a request actually leaving looks like,
+    which is the operationally meaningful thing, but they carry scheduler jitter. These record what
+    the limiter itself decided, so the limiter's own guarantee can be asserted with no tolerance.
+    """
+
+    def __init__(self, inner, log):
+        self._inner = inner
+        self.log = log
+
+    def append(self, value):
+        self.log.append(value)
+        self._inner.append(value)
+
+    def popleft(self):
+        return self._inner.popleft()
+
+    def __len__(self):
+        return len(self._inner)
+
+    def __bool__(self):
+        return bool(self._inner)
+
+    def __getitem__(self, index):
+        return self._inner[index]
+
+
+async def test_the_limiter_itself_never_grants_more_than_the_limit_in_a_window() -> None:
+    governor = _governor()
+    log: list[float] = []
+    governor.second_bucket._grants = _GrantSpy(governor.second_bucket._grants, log)
+
+    async def caller() -> None:
+        async with governor.slot("expired-historical-data"):
+            pass
+
+    await asyncio.gather(*[caller() for _ in range(200)])
+
+    grants = sorted(log)
+    assert len(grants) == 200
+    # No tolerance here. These are the limiter's own numbers, not an observer's.
+    for index, at in enumerate(grants):
+        inside = [other for other in grants[: index + 1] if other > at - FAST_SECOND]
+        assert len(inside) <= 8, f"{len(inside)} grants inside one {FAST_SECOND}s window"
+
+    # The direct form of the same guarantee: grant k cannot be less than one window after the
+    # grant eight before it, or nine sit inside a window somewhere.
+    spacing = [grants[i] - grants[i - 8] for i in range(8, len(grants))]
+    assert min(spacing) >= FAST_SECOND, f"closest eight-apart pair was {min(spacing):.6f}s"

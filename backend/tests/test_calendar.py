@@ -136,21 +136,27 @@ def test_partial_candle_cutoff_converts_to_ist():
 # ---------------------------------------------------------------- the 95 day chunker
 
 
-def test_chunker_default_is_95_days():
-    assert MAX_DAYS_PER_REQUEST == 95
+def test_chunker_default_is_100_days():
+    assert MAX_DAYS_PER_REQUEST == 100
 
 
 def test_chunk_of_exactly_the_limit_is_one_request():
     end = date(2025, 3, 27)
-    start = end - timedelta(days=94)
+    # max_days counts inclusive days, so the limit is reached at limit - 1 of span.
+    start = end - timedelta(days=MAX_DAYS_PER_REQUEST - 1)
     assert chunk_range(start, end) == [(start, end)]
 
 
 def test_one_day_past_the_limit_becomes_two_chunks():
     end = date(2025, 3, 27)
-    start = end - timedelta(days=95)
+    start = end - timedelta(days=MAX_DAYS_PER_REQUEST)
     chunks = chunk_range(start, end)
-    assert chunks == [(date(2024, 12, 23), end), (start, date(2024, 12, 22))]
+    assert len(chunks) == 2
+    # Newest first, contiguous, and covering the range exactly.
+    assert chunks[0][1] == end
+    assert chunks[1][0] == start
+    assert chunks[0][0] - chunks[1][1] == timedelta(days=1)
+    assert (chunks[0][1] - chunks[0][0]).days + 1 <= MAX_DAYS_PER_REQUEST
 
 
 def test_chunk_seams_are_contiguous_and_cover_the_range_exactly():

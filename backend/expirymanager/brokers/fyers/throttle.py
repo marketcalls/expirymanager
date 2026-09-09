@@ -562,21 +562,35 @@ class FyersGovernor:
             # machine is loaded enough to overshoot a sleep.
             try:
                 await self.minute_bucket.take()
-                await self.second_bucket.take()
             except BaseException:
                 self._in_flight.release()
                 raise
             async with self._state_lock:
                 if self._mode is not GovernorMode.RUNNING:
                     # The pipeline was paused while this caller waited. Give the slot back rather
-                    # than spending a request into a paused pipeline.
+                    # than spending a request into a paused pipeline. The minute slot taken above
+                    # is forfeited, which costs throughput on a pause and nothing on correctness.
                     self._in_flight.release()
                     continue
                 self._in_flight_count += 1
                 self._row = replace(self._row, requests_used=self._row.requests_used + 1)
                 self._unflushed += 1
                 if self._unflushed >= BUDGET_FLUSH_INTERVAL:
+                    # A synchronous SQLite write, holding the state lock. Everything queued behind
+                    # it resumes at once when it completes, which is precisely why the second
+                    # window must not have been granted yet.
                     self._persist_now()
+            # The second window is taken LAST, after every other await and after the periodic
+            # budget flush, because it is the one whose grant timestamp has to equal the moment
+            # the request leaves. Anything that can block between the grant and the send lets a
+            # stalled batch resume together and exceed the per second limit while the limiter's
+            # own bookkeeping still looks correct. The budget flush above is exactly that: a
+            # blocking write, every BUDGET_FLUSH_INTERVAL requests, under a contended lock.
+            try:
+                await self.second_bucket.take()
+            except BaseException:
+                self._in_flight.release()
+                raise
             return
 
     def release(self) -> None:

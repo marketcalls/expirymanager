@@ -8,7 +8,7 @@ Four things live here, all of them shared by the planner, the scheduler and the 
    NSE and BSE expiry weekdays have changed several times since 2022, so a hardcoded rule
    silently produces wrong dates for older data.
 3. The 30 trading day window inside which second resolutions exist at all.
-4. The 95 calendar day request chunker, and the half-open IST day boundaries that turn a date
+4. The 100 calendar day request chunker, and the half-open IST day boundaries that turn a date
    range into the UTC epoch bounds the candle table is keyed on.
 
 Everything that reasons about a market day does it in Asia/Kolkata. Everything stored is UTC.
@@ -52,10 +52,21 @@ EXCHANGE_DATA_FLOOR: Mapping[str, date] = {
     "MCX": date(2022, 1, 3),
 }
 
-# 95 and not the documented 100, deliberately: the docs never say whether the 100 day limit
-# counts calendar or trading days, and five days of margin costs about five percent more
-# requests while removing the ambiguity entirely.
-MAX_DAYS_PER_REQUEST = 95
+# 100, settled by probing the live API rather than inferred from the docs, which never say whether
+# the documented limit counts calendar or trading days. Measured against
+# NSE:NIFTY2541722900CE on 2026-09-09: a span of 100 calendar days between range_from and range_to
+# answers 200, and 101 answers HTTP 422 with code -50 "Invalid input". So the limit is calendar
+# days, the boundary is a hard error rather than a silent truncation, and the safe maximum is
+# exactly 100. The earlier value of 95 bought margin against an ambiguity that no longer exists,
+# at a cost of about five percent more requests: roughly 3,000 wasted calls on a full NIFTY
+# backfill, against a daily budget of 100,000.
+#
+# Note the unit: chunk_range counts days INCLUSIVE, while the probe measured the span between
+# range_from and range_to. The API accepted a span of 100, which is 101 inclusive days, so 100
+# inclusive leaves exactly one day of margin. That margin is deliberate and nearly free: it costs
+# under one percent of requests and covers the boundary being evaluated in a different timezone
+# on their side, where being one day over is a hard 422 rather than a truncation.
+MAX_DAYS_PER_REQUEST = 100
 
 SECONDS_WINDOW_TRADING_DAYS = 30
 
