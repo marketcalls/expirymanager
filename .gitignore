@@ -1,0 +1,55 @@
+# Credentials and secrets. Never commit any of these.
+.cred
+*.cred
+.env
+.env.*
+*.key
+*.pem
+*.crt
+*.p12
+master.key
+secrets/
+
+# Application data directory: databases, TLS material, exports, logs
+data/
+.expirymanager/
+*.duckdb
+*.duckdb.wal
+*.duckdb.tmp/
+*.sqlite
+*.sqlite3
+*.sqlite3-wal
+*.sqlite3-shm
+*.db
+*.db-wal
+*.db-shm
+exports/
+logs/
+*.log
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+htmlcov/
+.coverage
+.coverage.*
+
+# Node
+node_modules/
+dist/
+dist-ssr/
+.vite/
+*.local
+npm-debug.log*
+
+# Editors and OS
+.DS_Store
+.idea/
+.vscode/
+*.swp
