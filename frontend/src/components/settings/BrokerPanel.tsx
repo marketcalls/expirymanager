@@ -647,7 +647,21 @@ export function FyersConnectPanel({ status, className }: FyersConnectPanelProps)
     setAuthorizeUrl(null)
     // Opened synchronously inside the click. A window.open after an await has lost the user
     // gesture and is blocked by every browser.
-    pendingTabRef.current = window.open('', '_blank', 'noopener,noreferrer')
+    //
+    // Deliberately WITHOUT noopener: that feature makes window.open return null by design, since
+    // severing the connection is the whole point of it. The handle is what this flow navigates
+    // once the authorize URL comes back, so asking for noopener leaves a blank tab that never
+    // goes anywhere. The opener reference is cleared below instead, which gives the same
+    // protection while keeping the handle.
+    const tab = window.open('', '_blank')
+    if (tab) {
+      try {
+        tab.opener = null
+      } catch {
+        // Cross origin once navigated, and not worth failing the login over.
+      }
+    }
+    pendingTabRef.current = tab
     connect.mutate()
   }, [connect])
 
