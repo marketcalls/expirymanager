@@ -1,8 +1,13 @@
 # ExpiryManager HTTP API
 
-All routes are under `/api/v1`. There is exactly one browser origin in development (the Vite
-proxy) and in production (FastAPI StaticFiles), so `CORSMiddleware` is never added to this
-codebase.
+All routes are under `/api/v1`, **with exactly one exception**: `GET /fyers/callback` is mounted at
+the root, because the Fyers app's registered redirect URI is literally
+`https://127.0.0.1:8000/fyers/callback` and Fyers matches it exactly.
+
+The server speaks HTTPS on 127.0.0.1:8000 with a self-signed certificate it generates on first
+run. There is exactly one browser origin in development (`https://127.0.0.1:5173`, with the Vite
+proxy carrying `/api`) and one in production (`https://127.0.0.1:8000`), so `CORSMiddleware` is
+never added to this codebase.
 
 ---
 
@@ -14,7 +19,7 @@ means reachable only while the app is unprovisioned.
 
 **CSRF.** Every unsafe method (POST, PUT, PATCH, DELETE) requires the header `X-CSRF-Token`
 matching `session.csrf_token`, and passes the `Sec-Fetch-Site` and Origin checks first. The only
-exempt unsafe-adjacent route is `GET /broker/fyers/callback`, which is a cross-site top-level
+exempt route is `GET /fyers/callback`, which is a cross-site top-level
 navigation from Fyers and is protected by the single-use `state` parameter instead.
 
 **Rate limits.** Enforced by `security/ratelimit.py` using `limits` 5.8.0 with `MemoryStorage`
@@ -90,7 +95,7 @@ Response:
 
 ```json
 { "credential_id": "uuid", "label": "Primary", "app_id": "XXXXXXXXXX-100",
-  "redirect_uri": "http://127.0.0.1:8000/api/v1/broker/fyers/callback",
+  "redirect_uri": "https://127.0.0.1:8000/fyers/callback",
   "plan": "standard", "app_secret_configured": true, "pin_configured": false,
   "connected": true, "token_state": "active",
   "token_expires_at": "2026-09-10T01:30:00+05:30",
@@ -108,7 +113,9 @@ Response `200` with the same shape as `GET /broker/fyers`.
 Behaviour: `app_secret` and `pin` are encrypted with the active DEK before the row is written; the
 plaintext never leaves the request handler and never enters a log record. Saving new credentials
 revokes any existing token.
-Errors: `400 invalid_redirect_uri` (must be absolute http or https).
+Errors: `400 invalid_redirect_uri` (must be an absolute https URL; the default and the value the
+setup wizard offers with a copy button is `https://127.0.0.1:8000/fyers/callback`, which is what
+must be registered on the Fyers dashboard because Fyers matches it exactly).
 
 ### POST /api/v1/broker/fyers/connect
 Limit: 20/min.
@@ -119,7 +126,7 @@ the current session and credential with a 10 minute expiry, and returns the
 `state`. The SPA opens it in a new tab.
 Errors: `400 no_credentials`.
 
-### GET /api/v1/broker/fyers/callback
+### GET /fyers/callback
 Auth: `session` (carried because cookies are `SameSite=Lax`, which is exactly why they are not
 `Strict`). Limit: 20/min per ip. CSRF exempt by method.
 Query: `s`, `code`, `auth_code`, `state`.
@@ -137,7 +144,8 @@ used, wrong session), because distinguishing them is an oracle.
 Limit: 20/min.
 Request `{ "redirected_url": str }`.
 Response `200` with the broker status shape.
-Behaviour: the fallback for the case where Fyers refuses a loopback redirect URI. The user pastes
+Behaviour: the fallback for the case where the automatic redirect does not land, for example a
+certificate warning the user declines. The user pastes
 the full URL they were redirected to; the server parses `auth_code` and `state` from it and runs
 the identical code path as the callback.
 

@@ -1,133 +1,254 @@
 # ExpiryManager
 
-A zero-configuration data pipeline and warehouse for expired Indian F&O contract data from the
-Fyers API. It downloads, stores, charts and exports historical options and futures data, plus the
-underlying index and equity series, on a schedule.
+A zero-configuration data platform for Indian expired F&O contracts, built on the Fyers broker
+API. It downloads complete expiry and contract catalogs, backfills historical OHLCV plus open
+interest for the expiries you choose, keeps everything on a schedule, charts it, and exports it to
+CSV and Parquet.
 
-Built to be the datasource for options and futures research. An options backtesting engine reading
-this warehouse is the planned second phase.
+It is the datasource for options and futures research, and it is built so that a Phase 2 options
+backtesting engine can read the store directly without a rewrite.
 
-Status: in active development. The design is complete and the implementation is under way. See
-`docs/` for the full architecture.
+---
 
 ## What it does
 
-Pick an underlying, pick the expiries you want, and it downloads every contract for those expiries
-into DuckDB, with the metadata to make the data queryable years later.
+- **Complete expiry data** for NIFTY, BANKNIFTY, SENSEX and RELIANCE out of the box, and any other
+  underlying you add through the UI.
+- **Pick and download.** Choose an underlying, tick the expiries you want, choose resolutions, and
+  see exactly what the download will cost in Fyers requests, time, rows and disk before it starts.
+- **A real pipeline.** Every outbound request is a durable row, so a multi-day backfill survives a
+  restart, a token expiry or a closed laptop and resumes at the exact request it stopped on.
+- **Schedulers.** Ten built-in schedules keep the catalog current, capture second-resolution data
+  inside the only 30 day window in which it exists, and snapshot the Fyers symbol master daily so
+  lot sizes and tick sizes are recorded before expired contracts disappear from it.
+- **Maximum metadata.** Full request provenance per chunk, the verbatim response fragment per
+  contract, a slowly changing dimension for lot and tick size, and every field that can be parsed
+  out of the Fyers symbology.
+- **Charts.** Every contract renders in openalgo-charts with open interest as a separate pane.
+- **Exports.** DuckDB writes denormalised, self-describing Parquet and CSV, and the archive layout
+  includes the catalog so an export doubles as a restorable backup.
+
+---
+
+## Zero-config first run
+
+There is no `.env` file and no environment variable to set. Nothing needs editing before the app
+runs, and nothing outside the app data directory is ever written.
+
+1. Start the app and open `https://127.0.0.1:8000`.
+
+   Note the **s**. The app serves HTTPS on 127.0.0.1 port 8000, because that is what the Fyers
+   redirect URI requires, and it generates its own certificate on first run. The certificate is
+   self-signed, so the browser shows a warning on the first visit. That is expected, and the
+   startup banner says so. Accept it once and the warning does not return.
+2. **Step 1, set a local passcode.** This protects the app itself. It is hashed with Argon2id and
+   is never stored in plaintext.
+3. **Step 2, paste your Fyers app credentials.** App id and app secret, taken from your Fyers app
+   registration. The redirect URL is fixed at `https://127.0.0.1:8000/fyers/callback` and the
+   screen shows it with a copy button: register exactly that string on the Fyers dashboard,
+   because Fyers matches it character for character. The secret is encrypted with AES-256-GCM before it reaches the database, under a key
+   held in a 0600 file outside the database, and it is never displayed again, not even masked.
+4. **Step 3, click Connect.** You are sent to Fyers to authenticate with your password and TOTP,
+   and returned automatically. If the return does not land, for example because you declined the
+   certificate warning in that tab, paste the URL you were redirected to into the fallback box on
+   the same screen. It runs exactly the same verification.
+
+This interactive login is the only manual step in the whole system. Everything after it, including
+the scheduler, runs without you.
+
+On first boot the app creates everything it needs:
 
 ```
-Fyers API  ->  Data Pipeline  ->  DuckDB  ->  CSV and Parquet exports
-                                          ->  charts
+~/.expirymanager/
+  master.key         the encryption key, 0600 inside a 0700 directory
+  tls/server.key     the self-signed TLS key and certificate, 0600, renewed when they expire
+  tls/server.crt
+  config.sqlite3     settings, credentials, jobs, tasks, schedules
+  market.duckdb      the catalog and every candle
+  exports/           CSV and Parquet you create
+  raw/               archived raw responses, for auditing
+  logs/
+  tmp/
 ```
 
-- Ships with NIFTY, BANKNIFTY, SENSEX and RELIANCE. You can add your own underlyings.
-- Every expired option and future contract symbol is decomposed into structured columns:
-  underlying, expiry date, strike, option right, weekly or monthly, exchange, segment.
-- Open interest is captured alongside OHLCV.
-- Full provenance on every row: which job fetched it, when, from which request, and the checksum of
-  the response.
-- Exports to CSV and Parquet.
-- Charts through [openalgo-charts](https://github.com/marketcalls/openalgo-charts).
-- A scheduler for recurring downloads.
+You are then on the dashboard with the four builtin underlyings ready and the schedules enabled.
+Nothing has been downloaded yet: go to Expiries, pick an underlying, select some expiries, and
+open the download sheet.
 
-## Why the design looks the way it does
+---
 
-Three constraints drive nearly every decision.
+## Prerequisites
 
-**DuckDB allows exactly one process to hold the database file.** A second process cannot open it
-while a writer holds it, not even read only. So the app is a single uvicorn worker with one DuckDB
-instance, an in-process scheduler and a single writer task. This is deliberate, not a limitation
-waiting to be fixed.
+| Requirement | Version | Note |
+|---|---|---|
+| Python | 3.14.6 | Anything from 3.12 works, 3.14.6 is what this is built and tested against. |
+| Node | 26.4.0 | Needed only to build the frontend. Vite 8 requires `^20.19.0 \|\| >=22.12.0`. |
+| npm | 11.17.0 | |
+| A Fyers account | any | With an app registered whose redirect URI is exactly `https://127.0.0.1:8000/fyers/callback`. |
+| Disk | 10 to 20 GB | The four seed underlyings over 2022 to 2026 at one minute land around 6 to 9 GB. |
+| Network | outbound https | To `api-t1.fyers.in` and `public.fyers.in`. |
 
-**The Fyers rate limit is the binding resource, not disk or CPU.** Market data APIs allow 10
-requests per second, 200 per minute and 100,000 per day, and exceeding the per-minute limit more
-than three times in a day gets you blocked for the rest of the day. A full NIFTY 2022 to 2026
-backfill costs roughly 62,000 requests. Every request the app spends is therefore budgeted,
-visible and resumable.
+The app runs on loopback only and is designed for a single local user on their own machine.
 
-Because of that, downloads are planned before they are run. Asking for a plan costs zero Fyers
-requests: the planner answers from local state alone and returns how many requests the job needs,
-how many rows it will produce, how long it will take and how much of today's budget is left. The
-start button stays disabled, with a reason, if the plan would exceed the remaining budget.
+---
 
-**There is no .env file.** The Fyers app id, secret and redirect URL are entered in the UI and
-stored encrypted in SQLite. Credentials never live in a file you might commit.
+## Running it
 
-## Security
+### Build the frontend once
 
-- Secrets are encrypted at rest with AES-256-GCM. The additional authenticated data binds each
-  ciphertext to its table, column, row and key version, so ciphertext cannot be moved between rows.
-- The master key lives in a 0600 file outside the database, so the database file leaking on its own
-  (a backup, a sync folder, a stray `git add .`) does not leak credentials. An OS keyring provider
-  and a passphrase provider are available as options.
-- The app secret is write only in the UI. After it is saved the field reports that it is configured
-  and never renders the value. No API response and no log line ever contains it.
-- Session cookies are paired with a CSRF token and an origin check. The Vite dev proxy gives a
-  single browser origin in development and in production, so CORS is not needed at all.
-- Inbound rate limiting, security headers, and SQLite hardening with WAL and 0600 file modes.
+```
+cd frontend
+npm install
+npm run build
+```
 
-The threat model is written down honestly in `docs/SECURITY.md`, including what this design does
-not defend against. Malware running as your own user account is not defendable here, and the app
-does not pretend otherwise.
+### Run
 
-## Authentication and the daily login
+```
+cd backend
+uv sync
+uv run expirymanager
+```
 
-SEBI's retail algorithmic trading framework, effective 1 April 2026, discontinued the refresh
-token flow and made a daily two factor login mandatory. ExpiryManager is built around that rather
-than against it.
+Then open `https://127.0.0.1:8000` and accept the self-signed certificate once.
 
-- You log in to Fyers once a day through the app.
-- At 03:00 IST the app logs itself out and clears the access token.
-- Running jobs are not failed by this. They checkpoint, move to `awaiting_authentication`, and
-  resume automatically after your next successful login.
-- The download planner sizes work against both the remaining daily request budget and the time
-  left before the next logout.
+That is the whole thing: one process serving the API and the built frontend from the same origin.
 
-Note that the SEBI restrictions on static IP whitelisting, single app registration and order types
-apply to order placement. ExpiryManager only uses non-transactional market data APIs, so they do
-not apply to it.
+### Development
 
-## Requirements
+Two terminals, because the frontend needs the Vite dev server:
 
-- Python 3.13 or newer
-- Node 22 or newer
-- A Fyers account with an app created at the
-  [API Dashboard](https://fyers.in/web/api-dashboard/user-apps)
+```
+# terminal 1
+cd backend && uv run expirymanager --reload     # https://127.0.0.1:8000
 
-The registered redirect URI must be `https://127.0.0.1:8000/fyers/callback`. Fyers matches it
-exactly. Note the `https`: the app generates its own self signed certificate on first run, so
-expect a browser certificate warning the first time you visit.
+# terminal 2
+cd frontend && npm run dev                      # https://127.0.0.1:5173
+```
 
-## Getting started
+The dev server serves HTTPS using the same certificate the backend generated, and proxies `/api`
+to the backend. Use `https://127.0.0.1:5173` and not `localhost`: cookies ignore the port but not
+the host, and the same host is what lets the session cookie set by the OAuth callback on port 8000
+be seen by the dev origin on port 5173.
 
-Instructions will be added as the implementation lands. The intended first run is:
+The proxy means the browser talks to exactly one origin in development as well as in production,
+so cookies and CSRF behave identically in both.
 
-1. Start the app. It creates its data directory, its databases and its TLS certificate on its own.
-2. Open the UI. A setup wizard asks for your Fyers app id, secret and redirect URL, and stores them
-   encrypted.
-3. Log in to Fyers. This is the one interactive step, and it is required once a day.
-4. Pick an underlying, pick expiries, review the plan, and start the download.
+---
 
-There is nothing to edit by hand at any point.
+## One rule that matters
+
+**Only one process may hold `market.duckdb` at a time.** DuckDB refuses a second opener while a
+writer holds the file, not even read-only. That means:
+
+- Do not run `uvicorn` with more than one worker.
+- Do not run the scheduler as a separate process. It runs inside the app.
+- Do not leave a `duckdb` CLI session, a DBeaver connection or a notebook open against the file
+  while the app is running.
+
+If startup reports that the lock could not be taken, one of those three is the cause. Close it and
+start again.
+
+---
+
+## Understanding the Fyers budget
+
+The app's most important number is on the top bar at all times. The Fyers Standard plan allows
+10 requests per second, 200 per minute and 100,000 per day, and **exceeding the per-minute limit
+more than three times in one day blocks the account for the rest of the day.**
+
+ExpiryManager therefore:
+
+- runs its own limiter at 8 per second and 170 per minute, under the published caps,
+- keeps the daily counter and the strike counter in the database so a restart cannot reset them,
+- stops the entire pipeline on the first rate-limit response and waits for you to resume, rather
+  than retrying and spending a second strike,
+- reserves 30 percent of the daily budget for downloads you start by hand, so a nightly sweep can
+  never consume the whole day,
+- and never starts a download without first showing you the request cost.
+
+A full NIFTY 2022 to 2026 backfill is roughly 62,000 requests, about two thirds of one day of
+Standard quota. Plan for it to span an evening, and let the scheduler continue it the next day.
+
+---
+
+## Things the broker limits, not us
+
+- **Second-resolution data exists only for the last 30 trading days.** It can never be backfilled.
+  The `seconds_capture` schedule runs daily and is the highest priority job in the system; if the
+  machine is off for a month, that month of 5S data is permanently gone.
+- **Daily, weekly and monthly candles are not available for expired contracts.** Any daily series
+  in this app is aggregated from one minute bars inside DuckDB.
+- **Data starts on 03 January 2022 for NSE and MCX, and 07 August 2023 for BSE.** Requests are
+  clamped to those floors.
+- **The one manual step is the first Fyers login.** It needs an interactive browser login with
+  your account password and TOTP, which nothing can automate. Everything after it, including the
+  scheduler, runs without you.
+- **Refresh tokens are documented as discontinued from 1 April**, require your Fyers PIN, and
+  issue no rotated token. The app therefore treats a dead token as a first-class parked state with
+  a visible banner and a one-click re-login, and never as a retry loop. Jobs park rather than
+  fail, and resume at the exact request when you log back in.
+- **Expired contracts vanish from the Fyers symbol master.** Lot size and tick size for a contract
+  can only ever be captured while it is live, which is why the daily symbol master snapshot runs
+  from day one and is the one job that keeps working when the broker token is dead.
+
+---
+
+## Where the data lives
+
+`market.duckdb` is the source of truth. CSV and Parquet are exports, never inputs.
+
+The candles table is nine columns wide (`contract_id`, `res_id`, `ts`, four `DECIMAL(9,2)` prices,
+`volume`, `oi`), physically sorted by `(contract_id, res_id, ts)`, with no primary key and no
+index, because that layout measured 15.21 bytes per row and 0.1 ms per-contract queries. All
+descriptive richness lives in a small catalog joined at query time. Timestamps are naive
+`TIMESTAMP` holding IST wall clock, so no query depends on a session timezone setting.
+
+You can open the file with any DuckDB client while the app is **not** running, and the shipped
+macros give you the same vocabulary the app uses:
+
+```sql
+SELECT * FROM bars(42101, 2, TIMESTAMP '2025-03-01', TIMESTAMP '2025-03-28');
+SELECT * FROM chain_at(1, DATE '2025-03-27', 2, TIMESTAMP '2025-03-27 14:30:00');
+SELECT * FROM atm_strike(1, DATE '2025-03-27', 2, TIMESTAMP '2025-03-27 14:30:00');
+```
+
+---
+
+## Maintenance
+
+- **Storage** in Settings shows the file size against the modelled size. A DuckDB file only grows,
+  and `VACUUM` reclaims nothing, so heavy re-downloading raises the high water mark.
+- **Optimise** rewrites the database sorted, which is the only real way to reclaim space. It has
+  to close and swap the file, so it is a deliberate manual action and not a schedule.
+- **Backup** checkpoints first and copies the DuckDB file, its WAL and the SQLite files together.
+  Copying the `.duckdb` alone, or without checkpointing, restores a database missing the most
+  recent writes.
+- Do not put `~/.expirymanager` inside iCloud Drive, Dropbox, OneDrive or Google Drive. The app
+  refuses to start there, because a sync client plus WAL corrupts both databases.
+
+---
 
 ## Documentation
 
 | Document | Contents |
 |---|---|
-| `docs/ARCHITECTURE.md` | Components, process model, end to end flow, module layout, trust boundaries |
-| `docs/DATA-MODEL.md` | Every SQLite and DuckDB table with DDL, and the queries the backtester will run |
-| `docs/PIPELINE.md` | Job decomposition, the rate limit governor, retries, checkpointing, resume, scheduling |
-| `docs/API.md` | Every REST endpoint with request and response models |
-| `docs/SECURITY.md` | Threat model, encryption scheme, key management, CSRF, headers |
-| `docs/BUILD-PLAN.md` | Implementation phases and work items |
-| `docs/research/` | Source research notes behind the design decisions |
+| `docs/ARCHITECTURE.md` | Components, process model, end-to-end flow, module layout, trust boundaries. |
+| `docs/DATA-MODEL.md` | Every table with exact DDL, the metadata captured, and the Phase 2 queries the schema is built for. |
+| `docs/PIPELINE.md` | Job and task decomposition, the rate limiter, retry policy, resume, idempotent writes, token expiry, the scheduler. |
+| `docs/API.md` | Every endpoint with method, path, models, auth, rate limit and error cases. |
+| `docs/SECURITY.md` | Encryption scheme, key location, OAuth, sessions, CSRF, headers, and the never-log and never-return lists. |
+| `docs/BUILD-PLAN.md` | Ordered implementation phases and the parallelisable work items. |
+| `docs/research/` | The verified research notes the design is built on. Every number in them was measured. |
 
-## Roadmap
+---
 
-Phase 1, in progress: the data pipeline, the warehouse, charts, exports and the scheduler.
+## Writing rules for this repository
 
-Phase 2, planned: an options backtesting engine reading this warehouse directly.
+Inherited from openalgo-charts and applied project-wide:
 
-## License
-
-MIT. See [LICENSE](LICENSE).
+- No emoji and no icons anywhere: code, comments, log messages, commit messages, docs, tests or
+  terminal output. Plain text labels only.
+- No em dashes and no en dashes. Use a comma, a colon, parentheses or a full stop.
+- Comments explain why, not what.
+- Conventional Commits.

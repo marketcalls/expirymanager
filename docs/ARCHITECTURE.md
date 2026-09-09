@@ -29,6 +29,15 @@ It is built around three hard constraints that shape everything else:
 3. **There is no .env file.** Credentials are entered through the UI and stored encrypted in
    SQLite, and the master key lives in a 0600 file outside the database.
 
+A fourth constraint comes from the developer's already-registered Fyers app, and Fyers matches a
+redirect URI exactly, so there is no freedom here (see `docs/LOCAL-TEST-CREDENTIALS.md`):
+
+4. **The registered redirect URI is `https://127.0.0.1:8000/fyers/callback`.** Three consequences
+   that are load bearing everywhere below: the backend must listen on 127.0.0.1 port 8000, it must
+   serve **HTTPS** and not HTTP, and the callback route must be mounted at the **root** and not
+   under the `/api` prefix. Because the project is zero config, the app generates its own
+   self-signed TLS material on first run rather than asking anyone to produce a certificate.
+
 ---
 
 ## 2. Component diagram
@@ -41,11 +50,14 @@ It is built around three hard constraints that shape everything else:
   |   routes  -> TanStack Query cache <- SSE frames (/api/v1/events/stream)   |
   |   charts  -> ExpiryManagerDataFeed (getBars only, window clamped)         |
   +--------------------------------|-----------------------------------------+
-                                   |  fetch, cookies em_session + em_csrf
-                                   |  dev: Vite proxy /api -> 127.0.0.1:8000
-                                   |  prod: FastAPI StaticFiles serves the SPA
+                                   |  fetch, cookies em_session + em_csrf (Secure)
+                                   |  dev:  https://127.0.0.1:5173, Vite proxies
+                                   |        /api -> https://127.0.0.1:8000 (secure:false)
+                                   |  prod: https://127.0.0.1:8000 serves API and SPA
   +--------------------------------v-----------------------------------------+
-  |  FastAPI process (uvicorn, workers=1)                                     |
+  |  FastAPI process (uvicorn, workers=1, TLS on 127.0.0.1:8000)              |
+  |  root route /fyers/callback sits OUTSIDE the /api prefix, because the      |
+  |  registered Fyers redirect URI is exactly that path                       |
   |                                                                           |
   |  middleware: TrustedHost -> SecurityHeaders -> Session -> CSRF -> RateLimit|
   |                                                                           |
@@ -84,6 +96,7 @@ It is built around three hard constraints that shape everything else:
 
   Filesystem, all under ~/.expirymanager (0700):
     master.key (0600)   config.sqlite3 (+ -wal, -shm)   market.duckdb (+ .wal)
+    tls/server.key (0600)  tls/server.crt (0600)
     exports/            raw/YYYY/MM/DD/*.json.gz        logs/            tmp/
 ```
 
@@ -125,6 +138,19 @@ the process exits with a message naming the likely causes rather than surfacing 
 ---
 
 ## 4. End to end flow: user clicks Download
+
+### 4.0 Before any of that: first run
+
+```
+0a uvicorn is about to bind 127.0.0.1:8000. paths.ensure() finds no tls/server.crt, so
+   security/tls.py generates a self-signed certificate with cryptography: CN=127.0.0.1,
+   subjectAltName = IP:127.0.0.1, DNS:localhost, about one year of validity, key and
+   certificate both written 0600 inside ~/.expirymanager/tls. It regenerates whenever the
+   file is missing or expired. The startup banner prints, in plain text, that the browser
+   will show a certificate warning on first visit and that this is expected.
+0b The browser lands on https://127.0.0.1:8000, GET /api/v1/bootstrap says provisioned:false,
+   and the three step wizard runs: passcode, credentials, Connect.
+```
 
 ```
 1  Browser: user selects underlying NSE:NIFTY50-INDEX on /expiries, ticks 8 expiries,
@@ -226,6 +252,13 @@ the process exits with a message naming the likely causes rather than surfacing 
     an HTTPException detail, never logged unredacted, and never echoed to the browser. Errors
     are classified into a fixed enum, and the browser sees a code plus a safe message.
 
+  Boundary B2: the transport
+    The server speaks HTTPS on 127.0.0.1:8000 with a self-signed certificate it generates
+    itself. That is mandated by the registered Fyers redirect URI, and it also means the
+    session and CSRF cookies carry Secure in development as well as in production. HSTS is
+    still never sent, because pinning HSTS on 127.0.0.1 poisons that origin for every other
+    local development server the user runs, and a self-signed certificate makes that worse.
+
   Boundary C: the filesystem
     ~/.expirymanager is 0700 and every file inside is 0600 (os.umask(0o077) is the first
     statement of the entry point, because SQLite creates the -wal and -shm sidecars itself and
@@ -276,6 +309,7 @@ Package root `backend/expirymanager/`. One line of purpose per file.
 | `expirymanager/__main__.py` | Entry point. `os.umask(0o077)` first, then paths, then `uvicorn.run(workers=1)`. |
 | `expirymanager/version.py` | Single source of the app version string, written into DuckDB `meta`. |
 | `expirymanager/paths.py` | Resolves `~/.expirymanager` and every child path, creates 0700, refuses cloud sync roots, holds the advisory lock. |
+| `expirymanager/security/tls.py` | Generates and renews the self-signed 127.0.0.1 certificate that uvicorn binds, 0600. |
 | `expirymanager/app.py` | FastAPI application factory and middleware ordering. |
 | `expirymanager/lifespan.py` | Opens SQLite and DuckDB, runs migrations, starts writer, supervisor and scheduler, CHECKPOINTs on shutdown. |
 | `expirymanager/bootstrap.py` | Idempotent first-run provisioning: key file, DEK, migrations, reference seeds, four builtin underlyings. |
@@ -365,6 +399,7 @@ Package root `backend/expirymanager/`. One line of purpose per file.
 | `api/errors.py` | Exception handlers returning a correlation id and a safe message. |
 | `api/static.py` | Production StaticFiles mount of `frontend/dist` with the SPA fallback. |
 | `api/v1/bootstrap.py` | `GET /api/v1/bootstrap`, the only route reachable before setup. |
+| `api/oauth_callback.py` | `GET /fyers/callback`, mounted at the ROOT because the registered redirect URI says so. |
 | `api/v1/auth.py` | Local passcode setup, login, logout, me. |
 | `api/v1/broker.py` | Fyers credentials, connect, callback, manual callback, disconnect, test. |
 | `api/v1/underlyings.py` | The declared universe plus the resolve-a-new-root flow. |
@@ -407,7 +442,7 @@ react-router-dom 7.18.3, openalgo-charts 2.1.0 pinned from npm.
 
 | File | Purpose |
 |---|---|
-| `vite.config.ts` | React and Tailwind plugins, `@` alias, and the `/api` proxy to 127.0.0.1:8000 with `changeOrigin: false`. |
+| `vite.config.ts` | React and Tailwind plugins, `@` alias, HTTPS on `127.0.0.1:5173` using the app's own certificate, and the `/api` proxy to `https://127.0.0.1:8000` with `changeOrigin: false` and `secure: false`. |
 | `tsconfig.json`, `tsconfig.app.json` | `paths` only, no `baseUrl` (baseUrl is a hard TS5101 error on TypeScript 6 and 7). |
 | `components.json` | shadcn config. `baseColor` is locked after init, so it is chosen deliberately here. |
 | `index.html` | Single page shell plus the theme-flash-avoidance inline script. |
@@ -501,8 +536,11 @@ CSRF is a synchronizer token on the session row, delivered as the readable `em_c
 echoed in `X-CSRF-Token`, layered over `Sec-Fetch-Site` and an Origin allowlist. Cookies are
 `SameSite=Lax` specifically so the Fyers OAuth redirect still carries the session.
 
-There is exactly one browser origin in development (Vite proxy) and in production (FastAPI
-StaticFiles), so `CORSMiddleware` is never added to this codebase at all.
+There is exactly one browser origin in development (`https://127.0.0.1:5173`, with the Vite proxy
+carrying `/api`) and one in production (`https://127.0.0.1:8000`), so `CORSMiddleware` is never
+added to this codebase at all. The development origin deliberately uses the host `127.0.0.1` and
+not `localhost`, because cookies ignore the port but not the host: same-host different-port means
+the session cookie set by the backend on the OAuth callback is visible to the Vite origin.
 
 CSP is `script-src 'self'` and `style-src 'self' 'unsafe-inline'`. The `unsafe-inline` on styles
 is required and verified: `openalgo-charts/src/widget/styles.ts` injects a scoped `<style>`
@@ -519,16 +557,19 @@ Full detail, including the never-log and never-return lists, is in SECURITY.md.
 Development:
 
 ```
-terminal 1:  cd backend  && uv run expirymanager --reload
-terminal 2:  cd frontend && npm run dev        # http://localhost:5173, proxies /api
+terminal 1:  cd backend  && uv run expirymanager --reload   # https://127.0.0.1:8000
+terminal 2:  cd frontend && npm run dev                     # https://127.0.0.1:5173
 ```
 
 Production on the user's own machine:
 
 ```
 cd frontend && npm run build          # emits frontend/dist
-cd backend  && uv run expirymanager   # serves the API and dist from 127.0.0.1:8000
+cd backend  && uv run expirymanager   # serves the API and dist from https://127.0.0.1:8000
 ```
+
+Both modes show a browser certificate warning on first visit, because the certificate is
+self-signed. The startup banner says so in plain text so it is not mistaken for a fault.
 
 The app binds loopback only. Running it on a shared machine or a VPS reopens TLS termination,
 HSTS, real multi-user auth and the SQLCipher decision, and is out of scope for version 1.0.
