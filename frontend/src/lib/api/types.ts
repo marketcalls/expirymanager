@@ -28,7 +28,12 @@ export interface Paged<TItem> {
   next_cursor: string | null
 }
 
-export type TokenState = 'active' | 'expired' | 'revoked' | 'none'
+// Mirrors the broker_token.state CHECK constraint in db/models.py exactly. The bootstrap and
+// token routes return that column verbatim, so a narrower union here silently mistypes a real
+// response: 'expiring' drives the top bar warning and 'needs_reauth' is what the 03:00 IST
+// logout leaves behind, and both would arrive as values TypeScript believed impossible.
+// 'none' is the frontend-only case where no token row exists at all.
+export type TokenState = 'active' | 'expiring' | 'expired' | 'needs_reauth' | 'revoked' | 'none'
 export type PipelineMode = 'running' | 'paused' | 'stopped' | 'blocked_auth'
 export type InstrumentKind = 'INDEX' | 'EQUITY'
 export type ContractKind = 'FUT' | 'OPT' | 'SPOT'

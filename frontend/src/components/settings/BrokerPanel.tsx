@@ -815,7 +815,8 @@ export function FyersConnectPanel({ status, className }: FyersConnectPanelProps)
         {showPaste ? (
           <div className="mt-3 flex flex-col gap-2">
             <label className="text-xs text-muted-foreground" htmlFor="broker-redirected-url">
-              The whole address from the tab Fyers returned you to. It starts with {REDIRECT_URI}
+              The whole address from the tab Fyers returned you to. It starts with{' '}
+              {REDIRECT_URI} and carries a long auth_code.
             </label>
             <Textarea
               id="broker-redirected-url"

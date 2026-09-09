@@ -14,6 +14,8 @@ import logging
 
 import pytest
 
+from expirymanager.security import redaction
+
 from expirymanager.security.redaction import (
     REDACTED,
     REDACTED_JWT,
@@ -247,3 +249,46 @@ class TestLoggingSetupPrefersThisModule:
             for handler in saved_handlers:
                 root.addHandler(handler)
             root.setLevel(saved_level)
+
+
+class _UrlLike:
+    """Stands in for httpx.URL, which logs as an object rather than a str."""
+
+    def __init__(self, value: str) -> None:
+        self._value = value
+
+    def __str__(self) -> str:
+        return self._value
+
+
+def test_non_string_argument_carrying_a_query_is_scrubbed() -> None:
+    # httpx logs its request line with a URL object, so a str-only guard would let the whole
+    # callback query through untouched.
+    url = _UrlLike("https://127.0.0.1:8000/fyers/callback?auth_code=S3CR3T&state=xyz")
+    scrubbed = str(redaction._redact_arg(url))
+    assert "S3CR3T" not in scrubbed
+    assert "xyz" not in scrubbed
+
+
+def test_non_string_argument_without_a_query_is_returned_unchanged() -> None:
+    # A %d placeholder must still receive an int, or formatting the record raises.
+    assert redaction._redact_arg(42) == 42
+    assert redaction._redact_arg(None) is None
+
+
+def test_redaction_is_idempotent() -> None:
+    # A record filtered on both the logger and its handler passes through twice, and a marker
+    # that grows on each pass is both unreadable and untestable.
+    once = redaction.redact_query_string("cb?auth_code=A&state=B")
+    assert redaction.redact_query_string(once) == once
+    callback_once = redaction.redact_query_string("/fyers/callback?auth_code=A&state=B")
+    assert redaction.redact_query_string(callback_once) == callback_once
+
+
+def test_unrenderable_argument_does_not_break_the_record() -> None:
+    class Explodes:
+        def __str__(self) -> str:
+            raise RuntimeError("no repr")
+
+    value = Explodes()
+    assert redaction._redact_arg(value) is value

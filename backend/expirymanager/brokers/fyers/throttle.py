@@ -552,9 +552,17 @@ class FyersGovernor:
             await self._in_flight.acquire()
             # The windows are taken outside the state lock, because a caller can wait seconds here
             # and holding the state lock would block a pause from ever landing.
+            # The minute window is taken BEFORE the second window, and the second window is the
+            # last thing awaited before the request is issued. Order matters for the same reason
+            # the semaphore does: whatever is taken first can then block on whatever follows, and
+            # every caller released from that later wait fires immediately, in a burst. The minute
+            # window is the one that blocks for a long time, so a caller holding a second slot
+            # while waiting on it is exactly the burst to avoid. Taking the finest grained window
+            # last keeps a grant timestamp within microseconds of a send timestamp even when the
+            # machine is loaded enough to overshoot a sleep.
             try:
-                await self.second_bucket.take()
                 await self.minute_bucket.take()
+                await self.second_bucket.take()
             except BaseException:
                 self._in_flight.release()
                 raise

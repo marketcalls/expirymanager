@@ -195,6 +195,26 @@ def is_sensitive_key(name: str) -> bool:
     return any(sensitive in lowered for sensitive in SENSITIVE_KEY_SUBSTRINGS)
 
 
+# Redaction has to be idempotent. The value pattern stops at "]", so a second pass over an already
+# scrubbed string matched the "[redacted" prefix and appended a second marker, giving
+# "[redacted]]". A record can be filtered more than once (a filter on both the logger and its
+# handler is the ordinary case), and a marker that grows each time makes the log harder to read
+# and the tests non-deterministic. Both substitutions therefore leave an existing marker alone.
+_REDACTED_PREFIX = REDACTED[:-1]
+
+
+def _replace_query_param(match: re.Match[str]) -> str:
+    if match.group(2).startswith(_REDACTED_PREFIX):
+        return match.group(0)
+    return match.group(1) + REDACTED
+
+
+def _replace_callback_query(match: re.Match[str]) -> str:
+    if match.group(0).startswith(CALLBACK_PATH + "?" + _REDACTED_PREFIX):
+        return match.group(0)
+    return CALLBACK_PATH + "?" + REDACTED
+
+
 def redact_query_string(text: str) -> str:
     """Scrub sensitive parameters out of any URL or query string in ``text``.
 
@@ -202,8 +222,8 @@ def redact_query_string(text: str) -> str:
     httpx request logging, from an exception repr and from hand written debug lines, and only one
     of those three knows which endpoint it belongs to.
     """
-    scrubbed = _CALLBACK_QUERY_PATTERN.sub(CALLBACK_PATH + "?" + REDACTED, text)
-    return _QUERY_PARAM_PATTERN.sub(lambda m: m.group(1) + REDACTED, scrubbed)
+    scrubbed = _CALLBACK_QUERY_PATTERN.sub(_replace_callback_query, text)
+    return _QUERY_PARAM_PATTERN.sub(_replace_query_param, scrubbed)
 
 
 def redact_text(text: str) -> str:
@@ -279,6 +299,26 @@ class RedactionFilter(logging.Filter):
         return True
 
 
+def _redact_arg(arg: object) -> object:
+    """Scrub one logging argument, whether or not it is already a string.
+
+    A str-only guard misses the case the docstring below promises to cover: httpx logs its request
+    line with an `httpx.URL` object, not a str, so an object carrying a query string would pass
+    through untouched. Non-string arguments are rendered once and substituted only when redaction
+    actually changed something, so an int stays an int and a `%d` placeholder still formats.
+    """
+    if isinstance(arg, str):
+        return redact_query_string(arg)
+    try:
+        rendered = str(arg)
+    except Exception:
+        # A repr that raises must not take the log record down with it. Nothing can be leaked by a
+        # value that cannot be rendered, so returning it unchanged is safe.
+        return arg
+    redacted = redact_query_string(rendered)
+    return redacted if redacted != rendered else arg
+
+
 class CallbackQueryFilter(logging.Filter):
     """Strip the OAuth query string out of any log line that carries a URL.
 
@@ -296,13 +336,10 @@ class CallbackQueryFilter(logging.Filter):
             record.msg = redact_query_string(record.msg)
 
         if record.args and isinstance(record.args, tuple):
-            record.args = tuple(
-                redact_query_string(arg) if isinstance(arg, str) else arg for arg in record.args
-            )
+            record.args = tuple(_redact_arg(arg) for arg in record.args)
         elif record.args and isinstance(record.args, Mapping):
             record.args = {  # type: ignore[assignment]
-                key: redact_query_string(value) if isinstance(value, str) else value
-                for key, value in record.args.items()
+                key: _redact_arg(value) for key, value in record.args.items()
             }
 
         return True
