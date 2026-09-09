@@ -108,11 +108,13 @@ into round-tripping it back on save. Only `*_configured` booleans cross the boun
 ### POST /api/v1/broker/fyers/credentials
 Limit: 10/hour.
 Request `{ "label": str, "app_id": str, "app_secret": str, "redirect_uri": str,
-"plan": "standard"|"prime", "pin": str|null }`.
+"plan": "standard"|"prime" }`.
 Response `200` with the same shape as `GET /broker/fyers`.
-Behaviour: `app_secret` and `pin` are encrypted with the active DEK before the row is written; the
+Behaviour: `app_secret` is encrypted with the active DEK before the row is written; the
 plaintext never leaves the request handler and never enters a log record. Saving new credentials
 revokes any existing token.
+There is no PIN field. SEBI discontinued the refresh token flow from 1 April 2026, so unattended
+refresh is not possible and a stored PIN would be a fourth secret that buys nothing.
 Errors: `400 invalid_redirect_uri` (must be an absolute https URL; the default and the value the
 setup wizard offers with a copy button is `https://127.0.0.1:8000/fyers/callback`, which is what
 must be registered on the Fyers dashboard because Fyers matches it exactly).

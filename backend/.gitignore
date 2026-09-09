@@ -1,0 +1,26 @@
+# The application data directory never lives in the repository, but a stray relative-path run can
+# create one here, and it holds the key file and both databases.
+.expirymanager/
+data/
+
+*.key
+*.crt
+*.pem
+master.key
+tls/
+
+*.duckdb
+*.duckdb.wal
+*.sqlite3
+*.sqlite3-wal
+*.sqlite3-shm
+
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/

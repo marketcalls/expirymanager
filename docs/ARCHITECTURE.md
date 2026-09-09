@@ -204,7 +204,7 @@ the process exits with a message naming the likely causes rather than surfacing 
      s == 'error'   -> errors.classify(...) decides the queue transition
 
 8  Build pyarrow.RecordBatch with the pinned CANDLE_SCHEMA. Convert epoch seconds to naive IST
-   by adding 19800 seconds. Prices to decimal128(9,2); a value that would lose precision raises
+   by adding 19800 seconds. Prices to decimal128(11,4); a value that would lose precision raises
    rather than rounds.
 
 9  Enqueue one WriteOp on the DuckWriter queue. The writer runs, in one transaction:

@@ -1,8 +1,8 @@
 # ExpiryManager Security Implementation
 
 The product decision is zero configuration: there is no .env file anywhere in this repository and
-no environment variable is read at runtime. The Fyers app id, app secret, redirect URI and
-optional PIN are entered through the UI and stored encrypted in SQLite. That raises the bar rather
+no environment variable is read at runtime. The Fyers app id, app secret and redirect URI are
+entered through the UI, and the app secret is stored encrypted in SQLite. That raises the bar rather
 than lowering it, because the key has to live somewhere the app can reach unattended after a
 reboot, and that question is answered explicitly below rather than avoided.
 
@@ -37,9 +37,8 @@ Only true secrets. Everything else stays plaintext so it remains queryable and g
 | Table.column | Encrypted | Why |
 |---|---|---|
 | `broker_credential.app_secret_enc` | yes | It is the secret half of the app identity. |
-| `broker_credential.pin_enc` | yes | A fourth secret, optional, only if the user opts into refresh. |
 | `broker_token.access_token_enc` | yes | A live bearer credential. |
-| `broker_token.refresh_token_enc` | yes | A live bearer credential with a 15 day life. |
+| `broker_token.refresh_token_enc` | yes | A live bearer credential returned by the login response. |
 | `broker_credential.app_id` | no | Not secret. It appears in the authorize URL. |
 | `broker_credential.redirect_uri` | no | Not secret. |
 | `broker_token.token_fingerprint` | no | sha256 of the access token. Safe to log, safe to store on coverage rows for provenance. |

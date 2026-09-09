@@ -110,7 +110,8 @@ CREATE TABLE broker_credential (
     app_id         TEXT NOT NULL,           -- not secret, e.g. 'XXXXXXXXXX-100'
     app_secret_enc BLOB NOT NULL,           -- EM1 envelope
     redirect_uri   TEXT NOT NULL,
-    pin_enc        BLOB,                    -- optional, only if the user opts into refresh
+    -- No pin column. SEBI discontinued the refresh token flow from 1 April 2026, so a PIN
+    -- cannot buy unattended refresh and would only add a fourth secret to protect.
     plan           TEXT NOT NULL DEFAULT 'standard' CHECK (plan IN ('standard','prime')),
     key_ver        INTEGER NOT NULL,
     is_active      INTEGER NOT NULL DEFAULT 1,
@@ -154,7 +155,7 @@ CREATE TABLE underlying_registry (
     root                 TEXT NOT NULL,         -- 'NIFTY', authoritative from the expiry-dates echo
     exchange             TEXT NOT NULL CHECK (exchange IN ('NSE','BSE','MCX')),
     segment              TEXT NOT NULL CHECK (segment IN ('CM','FO','CD','COM')),
-    instrument_kind      TEXT NOT NULL CHECK (instrument_kind IN ('INDEX','EQUITY','COMMODITY')),
+    instrument_kind      TEXT NOT NULL CHECK (instrument_kind IN ('INDEX','EQUITY','COMMODITY','CURRENCY')),
     display_name         TEXT NOT NULL,
     data_from            TEXT NOT NULL,         -- exchange availability floor as yyyy-mm-dd
     default_resolutions  TEXT NOT NULL,         -- JSON array of Fyers resolution codes
@@ -492,10 +493,10 @@ CREATE TABLE IF NOT EXISTS candles (
     contract_id INTEGER      NOT NULL,
     res_id      UTINYINT     NOT NULL,
     ts          TIMESTAMP    NOT NULL,   -- bar open, naive, IST wall clock
-    open        DECIMAL(9,2) NOT NULL,
-    high        DECIMAL(9,2) NOT NULL,
-    low         DECIMAL(9,2) NOT NULL,
-    close       DECIMAL(9,2) NOT NULL,
+    open        DECIMAL(11,4) NOT NULL,
+    high        DECIMAL(11,4) NOT NULL,
+    low         DECIMAL(11,4) NOT NULL,
+    close       DECIMAL(11,4) NOT NULL,
     volume      BIGINT       NOT NULL,
     oi          BIGINT                   -- NULL when include_oi was 0, and for indices
 );
@@ -509,21 +510,22 @@ Every one of those choices is measured rather than assumed:
 
 | Choice | Measurement |
 |---|---|
-| `DECIMAL(9,2)` prices | 15.21 bytes/row against 17.36 for DOUBLE and 22.28 for FLOAT. FLOAT is larger than DOUBLE because DuckDB's ALP compression degrades to the ALPRD raw-bits fallback on 32 bits. |
+| `DECIMAL(11,4)` prices | 19.30 bytes/row, against 15.21 for `DECIMAL(9,2)`, 17.36 for DOUBLE and 22.28 for FLOAT. `DECIMAL(9,2)` is the smallest option and was the original choice, but it cannot represent the 0.0025 currency-derivative tick, and the product lets a user register their own underlying. Widening after the first backfill means rewriting every row, so the 27 percent extra disk is paid up front. FLOAT is larger than DOUBLE because DuckDB's ALP compression degrades to the ALPRD raw-bits fallback on 32 bits. |
 | No PRIMARY KEY | Adding `PRIMARY KEY (contract_id, ts)` to 5,000,000 rows grew the file from 75.5 MB to 341.6 MB and slowed the load from 0.45 s to 2.02 s, with zero point-lookup benefit (0.41 ms against 0.40 ms). |
 | Sort key `(contract_id, res_id, ts)` | `WHERE contract_id = X` takes 0.1 ms sorted against 2.6 ms when inserted in ts order, a 26x difference purely from zone map pruning. |
 | Naive IST `TIMESTAMP` | DuckDB's session TimeZone defaults to the host OS zone and `to_timestamp` returns TIMESTAMPTZ, so relying on either renders differently on a container and on the user's machine. India has had a fixed UTC+05:30 offset since 1945, so naive IST is lossless. |
 | `res_id UTINYINT` in one table | Compression is `Constant` inside every row group, so it costs effectively nothing, and one table keeps one sort order. |
 
-Sizing at 15.21 bytes per row: the four seed underlyings over 2022 to 2026 at one minute land
-around 400 to 600 million rows, which is 6 to 9 GB. A pessimistic one billion rows is about 15 GB.
-A single 15 GB DuckDB file is routine and is not a reason to shard.
+Sizing at 19.30 bytes per row: the four seed underlyings over 2022 to 2026 at one minute land
+around 400 to 600 million rows, which is 8 to 12 GB. A pessimistic one billion rows is about
+19 GB. A single 19 GB DuckDB file is routine and is not a reason to shard.
 
-Ingest guard: prices are `DECIMAL(9,2)`, which is exact for the 0.05 NSE and BSE tick but would
-silently truncate currency derivatives, which tick at 0.0025. `db/arrow.py` refuses segment code
-12 (Currency Derivatives) at ingest with an explicit error rather than rounding. The documented
-remedy if currency support is ever wanted is the ATTACH plus CTAS rewrite that the Optimise
-action already performs.
+Ingest guard on precision, not on segment. There is no segment allowlist and no refusal of
+Currency Derivatives: `DECIMAL(11,4)` is exact for the 0.05 NSE and BSE tick and for the 0.0025
+currency tick alike. What `db/arrow.py` does enforce is that a price needing more than four
+decimal places, or exceeding the DECIMAL(11,4) range, raises rather than rounds. Silently
+rounding a price is the failure this guard exists to prevent, and it is the reason the price
+columns are DECIMAL at all rather than DOUBLE.
 
 ### 2.2 Contract identity and the id keyspace
 
@@ -590,9 +592,9 @@ CREATE TABLE IF NOT EXISTS dim_expiry (
     futures_count         INTEGER,
     options_count         INTEGER,
     contract_count        INTEGER,
-    min_strike            DECIMAL(12,2),
-    max_strike            DECIMAL(12,2),
-    strike_step           DECIMAL(12,2),
+    min_strike            DECIMAL(12,4),
+    max_strike            DECIMAL(12,4),
+    strike_step           DECIMAL(12,4),
     contract_id_lo        INTEGER,
     contract_id_hi        INTEGER,
     expiry_cycle_derived  VARCHAR,           -- 'W' | 'M', derived: last options expiry of a month is M
@@ -633,7 +635,7 @@ CREATE TABLE IF NOT EXISTS dim_contract (
     expiry_cycle_source    VARCHAR,            -- 'derived' | 'option_chain'
 
     -- option facts
-    strike                 DECIMAL(12,2),
+    strike                 DECIMAL(12,4),
     strike_raw             VARCHAR,            -- the verbatim substring, e.g. '80.5'
     strike_ordinal         INTEGER,            -- rank within the expiry, for chain slicing
     option_type            VARCHAR,            -- 'CE' | 'PE'
@@ -698,6 +700,11 @@ Two columns exist specifically because a monthly coded symbol carries no expiry 
 symbol string said, and a mismatch is a data quality alarm rather than something to paper over.
 `symbol_expiry_encoding` and `expiry_cycle` are separate columns because monthly coded is an
 encoding and not a cycle: the last weekly expiry of a calendar month is written in monthly form.
+
+Every strike column carries four decimal places for the same reason the candle prices do. A
+currency-derivative strike is quoted to four places, and a strike that has been truncated is a
+missing leg rather than a rounding error. Precision 12 stores in INT64 at either scale, so
+`DECIMAL(12,4)` costs exactly what `DECIMAL(12,2)` did.
 
 Primary keys on the catalog tables are wanted. The ART index cost is a function of row count, and
 these tables hold on the order of 100,000 rows, not one billion.
@@ -773,7 +780,7 @@ CREATE TABLE IF NOT EXISTS meta (
 -- candles.ts.timezone = 'Asia/Kolkata',
 -- candles.ts.semantics = 'naive local wall clock at bar open',
 -- ist_offset_seconds = '19800',
--- candles.price.type = 'DECIMAL(9,2)'.
+-- candles.price.type = 'DECIMAL(11,4)'.
 ```
 
 `candle_coverage` is why provenance is captured at chunk granularity and not as a per-row source
@@ -805,7 +812,7 @@ CREATE TABLE IF NOT EXISTS candle_greeks (
     theta       DECIMAL(12,6),
     vega        DECIMAL(12,6),
     rho         DECIMAL(12,6),
-    fp          DECIMAL(9,2),
+    fp          DECIMAL(11,4),
     src         VARCHAR NOT NULL   -- 'fyers_include_greeks' | 'chain_snapshot' | 'computed'
 );
 
@@ -814,12 +821,12 @@ CREATE TABLE IF NOT EXISTS chain_snapshot (
     underlying_id INTEGER NOT NULL,
     expiry_date   DATE NOT NULL,
     expiry_flag   VARCHAR,          -- 'W' | 'M', the ONLY authoritative source of the cycle
-    strike        DECIMAL(12,2),
+    strike        DECIMAL(12,4),
     option_type   VARCHAR,
     fyers_symbol  VARCHAR,
-    ltp           DECIMAL(9,2),
-    bid           DECIMAL(9,2),
-    ask           DECIMAL(9,2),
+    ltp           DECIMAL(11,4),
+    bid           DECIMAL(11,4),
+    ask           DECIMAL(11,4),
     volume        BIGINT,
     oi            BIGINT,
     prev_oi       BIGINT,
@@ -828,8 +835,8 @@ CREATE TABLE IF NOT EXISTS chain_snapshot (
     gamma         DECIMAL(12,8),
     theta         DECIMAL(12,6),
     vega          DECIMAL(12,6),
-    fp            DECIMAL(9,2),
-    india_vix     DECIMAL(9,2),
+    fp            DECIMAL(11,4),
+    india_vix     DECIMAL(11,4),
     task_id       BIGINT NOT NULL
 );
 ```
@@ -860,7 +867,7 @@ CREATE TABLE IF NOT EXISTS dim_instrument_master (
     qty_freeze         INTEGER,
     qty_multiplier     DECIMAL(12,4),
     face_value         DECIMAL(12,4),
-    strike_price       DECIMAL(12,2),
+    strike_price       DECIMAL(12,4),
     option_type        VARCHAR,
     expiry_date        DATE,
     trading_session    VARCHAR,
@@ -1082,7 +1089,7 @@ SELECT c.contract_id, c.strike, c.option_type
 This is the query that justifies keeping spot bars in the same `candles` table with reserved low
 contract ids. The spot lookup is a scan of a handful of row groups at the very front of the file,
 in the same table, in the same transaction snapshot, with no second store and no Python round
-trip. It is also why `strike` is `DECIMAL(12,2)` and never DOUBLE: strike equality and grouping
+trip. It is also why `strike` is `DECIMAL(12,4)` and never DOUBLE: strike equality and grouping
 is the most common catalog predicate in options work, and floating point equality on strikes is a
 known source of missing legs.
 
@@ -1139,7 +1146,7 @@ coverage with `min(ts), max(ts)` over the fact table.
 
 Phase 2 should take Arrow rather than pandas: `cur.execute(sql).arrow()` and
 `.fetch_record_batch(n)` avoid a pandas materialisation and let a vectorised backtester stream row
-groups. `DECIMAL(9,2)` round trips as `decimal128(9,2)` in Arrow, `Decimal` in Polars and
+groups. `DECIMAL(11,4)` round trips as `decimal128(11,4)` in Arrow, `Decimal` in Polars and
 `float64` via `.df()`. Division and `ln()` on DECIMAL auto-promote to DOUBLE, so returns and
 greeks math needs no explicit casts.
 

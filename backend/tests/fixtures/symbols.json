@@ -1,0 +1,1235 @@
+{
+  "note": "Golden symbol corpus for the Fyers symbology parser. Entries marked doc are verbatim from the vendor documentation (appendix Symbology Format table, Data API samples, expired F&O samples). Entries marked constructed exercise a trap that a naive regex falls into and are labelled in the rejects notes or by their root.",
+  "as_of": "2026-09-09",
+  "as_of_note": "The expiry year plausibility window runs from 2015 to the current year plus five and is what separates two otherwise valid weekly splits. Tests pin the clock to as_of so the corpus stays deterministic across calendar years.",
+  "counts": {
+    "doc": 50,
+    "constructed": 12,
+    "rejects": 7
+  },
+  "cases": [
+    {
+      "symbol": "NSE:SBIN-EQ",
+      "source": "doc",
+      "expect": {
+        "exchange": "NSE",
+        "segment": "CM",
+        "segment_code": 10,
+        "kind": "SPOT",
+        "root": "SBIN",
+        "series": "EQ",
+        "instrument_class": "EQUITY",
+        "expiry": null,
+        "symbol_expiry_encoding": "NONE",
+        "strike": null,
+        "option_type": null,
+        "exchange_code": 10
+      }
+    },
+    {
+      "symbol": "NSE:ACC-EQ",
+      "source": "doc",
+      "expect": {
+        "exchange": "NSE",
+        "segment": "CM",
+        "segment_code": 10,
+        "kind": "SPOT",
+        "root": "ACC",
+        "series": "EQ",
+        "instrument_class": "EQUITY",
+        "expiry": null,
+        "symbol_expiry_encoding": "NONE",
+        "strike": null,
+        "option_type": null,
+        "exchange_code": 10
+      }
+    },
+    {
+      "symbol": "NSE:MODIRUBBER-BE",
+      "source": "doc",
+      "expect": {
+        "exchange": "NSE",
+        "segment": "CM",
+        "segment_code": 10,
+        "kind": "SPOT",
+        "root": "MODIRUBBER",
+        "series": "BE",
+        "instrument_class": "EQUITY",
+        "expiry": null,
+        "symbol_expiry_encoding": "NONE",
+        "strike": null,
+        "option_type": null,
+        "exchange_code": 10
+      }
+    },
+    {
+      "symbol": "NSE:RELIANCE-EQ",
+      "source": "doc",
+      "expect": {
+        "exchange": "NSE",
+        "segment": "CM",
+        "segment_code": 10,
+        "kind": "SPOT",
+        "root": "RELIANCE",
+        "series": "EQ",
+        "instrument_class": "EQUITY",
+        "expiry": null,
+        "symbol_expiry_encoding": "NONE",
+        "strike": null,
+        "option_type": null,
+        "exchange_code": 10
+      }
+    },
+    {
+      "symbol": "BSE:SBIN-A",
+      "source": "doc",
+      "expect": {
+        "exchange": "BSE",
+        "segment": "CM",
+        "segment_code": 10,
+        "kind": "SPOT",
+        "root": "SBIN",
+        "series": "A",
+        "instrument_class": "EQUITY",
+        "expiry": null,
+        "symbol_expiry_encoding": "NONE",
+        "strike": null,
+        "option_type": null,
+        "exchange_code": 12
+      }
+    },
+    {
+      "symbol": "BSE:ACC-A",
+      "source": "doc",
+      "expect": {
+        "exchange": "BSE",
+        "segment": "CM",
+        "segment_code": 10,
+        "kind": "SPOT",
+        "root": "ACC",
+        "series": "A",
+        "instrument_class": "EQUITY",
+        "expiry": null,
+        "symbol_expiry_encoding": "NONE",
+        "strike": null,
+        "option_type": null,
+        "exchange_code": 12
+      }
+    },
+    {
+      "symbol": "BSE:MODIRUBBER-T",
+      "source": "doc",
+      "expect": {
+        "exchange": "BSE",
+        "segment": "CM",
+        "segment_code": 10,
+        "kind": "SPOT",
+        "root": "MODIRUBBER",
+        "series": "T",
+        "instrument_class": "EQUITY",
+        "expiry": null,
+        "symbol_expiry_encoding": "NONE",
+        "strike": null,
+        "option_type": null,
+        "exchange_code": 12
+      }
+    },
+    {
+      "symbol": "BSE:BIOGEN-XT",
+      "source": "doc",
+      "expect": {
+        "exchange": "BSE",
+        "segment": "CM",
+        "segment_code": 10,
+        "kind": "SPOT",
+        "root": "BIOGEN",
+        "series": "XT",
+        "instrument_class": "EQUITY",
+        "expiry": null,
+        "symbol_expiry_encoding": "NONE",
+        "strike": null,
+        "option_type": null,
+        "exchange_code": 12
+      }
+    },
+    {
+      "symbol": "NSE:NIFTY50-INDEX",
+      "source": "doc",
+      "expect": {
+        "exchange": "NSE",
+        "segment": "CM",
+        "segment_code": 10,
+        "kind": "SPOT",
+        "root": "NIFTY50",
+        "series": "INDEX",
+        "instrument_class": "INDEX",
+        "expiry": null,
+        "symbol_expiry_encoding": "NONE",
+        "strike": null,
+        "option_type": null,
+        "exchange_code": 10
+      }
+    },
+    {
+      "symbol": "NSE:NIFTYBANK-INDEX",
+      "source": "doc",
+      "expect": {
+        "exchange": "NSE",
+        "segment": "CM",
+        "segment_code": 10,
+        "kind": "SPOT",
+        "root": "NIFTYBANK",
+        "series": "INDEX",
+        "instrument_class": "INDEX",
+        "expiry": null,
+        "symbol_expiry_encoding": "NONE",
+        "strike": null,
+        "option_type": null,
+        "exchange_code": 10
+      }
+    },
+    {
+      "symbol": "NSE:INDIAVIX-INDEX",
+      "source": "doc",
+      "expect": {
+        "exchange": "NSE",
+        "segment": "CM",
+        "segment_code": 10,
+        "kind": "SPOT",
+        "root": "INDIAVIX",
+        "series": "INDEX",
+        "instrument_class": "INDEX",
+        "expiry": null,
+        "symbol_expiry_encoding": "NONE",
+        "strike": null,
+        "option_type": null,
+        "exchange_code": 10
+      }
+    },
+    {
+      "symbol": "NSE:NIFTYMIDSELECT-INDEX",
+      "source": "doc",
+      "expect": {
+        "exchange": "NSE",
+        "segment": "CM",
+        "segment_code": 10,
+        "kind": "SPOT",
+        "root": "NIFTYMIDSELECT",
+        "series": "INDEX",
+        "instrument_class": "INDEX",
+        "expiry": null,
+        "symbol_expiry_encoding": "NONE",
+        "strike": null,
+        "option_type": null,
+        "exchange_code": 10
+      }
+    },
+    {
+      "symbol": "NSE:NIFTYHEALTHCARE-INDEX",
+      "source": "doc",
+      "expect": {
+        "exchange": "NSE",
+        "segment": "CM",
+        "segment_code": 10,
+        "kind": "SPOT",
+        "root": "NIFTYHEALTHCARE",
+        "series": "INDEX",
+        "instrument_class": "INDEX",
+        "expiry": null,
+        "symbol_expiry_encoding": "NONE",
+        "strike": null,
+        "option_type": null,
+        "exchange_code": 10
+      }
+    },
+    {
+      "symbol": "BSE:SENSEX-INDEX",
+      "source": "doc",
+      "expect": {
+        "exchange": "BSE",
+        "segment": "CM",
+        "segment_code": 10,
+        "kind": "SPOT",
+        "root": "SENSEX",
+        "series": "INDEX",
+        "instrument_class": "INDEX",
+        "expiry": null,
+        "symbol_expiry_encoding": "NONE",
+        "strike": null,
+        "option_type": null,
+        "exchange_code": 12
+      }
+    },
+    {
+      "symbol": "NSE:NIFTY20OCTFUT",
+      "source": "doc",
+      "expect": {
+        "exchange": "NSE",
+        "segment": "FO",
+        "kind": "FUT",
+        "root": "NIFTY",
+        "series": null,
+        "expiry": null,
+        "expiry_year": 2020,
+        "expiry_month": 10,
+        "symbol_expiry_encoding": "MONTHLY_CODED",
+        "strike": null,
+        "option_type": null,
+        "segment_code": 11,
+        "exchange_code": 10
+      }
+    },
+    {
+      "symbol": "NSE:BANKNIFTY20NOVFUT",
+      "source": "doc",
+      "expect": {
+        "exchange": "NSE",
+        "segment": "FO",
+        "kind": "FUT",
+        "root": "BANKNIFTY",
+        "series": null,
+        "expiry": null,
+        "expiry_year": 2020,
+        "expiry_month": 11,
+        "symbol_expiry_encoding": "MONTHLY_CODED",
+        "strike": null,
+        "option_type": null,
+        "segment_code": 11,
+        "exchange_code": 10
+      }
+    },
+    {
+      "symbol": "NSE:BANKNIFTY25MARFUT",
+      "source": "doc",
+      "expect": {
+        "exchange": "NSE",
+        "segment": "FO",
+        "kind": "FUT",
+        "root": "BANKNIFTY",
+        "series": null,
+        "expiry": null,
+        "expiry_year": 2025,
+        "expiry_month": 3,
+        "symbol_expiry_encoding": "MONTHLY_CODED",
+        "strike": null,
+        "option_type": null,
+        "segment_code": 11,
+        "exchange_code": 10
+      }
+    },
+    {
+      "symbol": "NSE:NIFTY26SEPFUT",
+      "source": "doc",
+      "expect": {
+        "exchange": "NSE",
+        "segment": "FO",
+        "kind": "FUT",
+        "root": "NIFTY",
+        "series": null,
+        "expiry": null,
+        "expiry_year": 2026,
+        "expiry_month": 9,
+        "symbol_expiry_encoding": "MONTHLY_CODED",
+        "strike": null,
+        "option_type": null,
+        "segment_code": 11,
+        "exchange_code": 10
+      }
+    },
+    {
+      "symbol": "BSE:SENSEX23AUGFUT",
+      "source": "doc",
+      "expect": {
+        "exchange": "BSE",
+        "segment": "FO",
+        "kind": "FUT",
+        "root": "SENSEX",
+        "series": null,
+        "expiry": null,
+        "expiry_year": 2023,
+        "expiry_month": 8,
+        "symbol_expiry_encoding": "MONTHLY_CODED",
+        "strike": null,
+        "option_type": null,
+        "segment_code": 11,
+        "exchange_code": 12
+      }
+    },
+    {
+      "symbol": "NSE:USDINR20OCTFUT",
+      "source": "doc",
+      "expect": {
+        "exchange": "NSE",
+        "segment": "CD",
+        "kind": "FUT",
+        "root": "USDINR",
+        "series": null,
+        "expiry": null,
+        "expiry_year": 2020,
+        "expiry_month": 10,
+        "symbol_expiry_encoding": "MONTHLY_CODED",
+        "strike": null,
+        "option_type": null,
+        "segment_code": 12,
+        "exchange_code": 10
+      }
+    },
+    {
+      "symbol": "NSE:GBPINR20NOVFUT",
+      "source": "doc",
+      "expect": {
+        "exchange": "NSE",
+        "segment": "CD",
+        "kind": "FUT",
+        "root": "GBPINR",
+        "series": null,
+        "expiry": null,
+        "expiry_year": 2020,
+        "expiry_month": 11,
+        "symbol_expiry_encoding": "MONTHLY_CODED",
+        "strike": null,
+        "option_type": null,
+        "segment_code": 12,
+        "exchange_code": 10
+      }
+    },
+    {
+      "symbol": "MCX:CRUDEOIL20OCTFUT",
+      "source": "doc",
+      "expect": {
+        "exchange": "MCX",
+        "segment": "COM",
+        "kind": "FUT",
+        "root": "CRUDEOIL",
+        "series": null,
+        "expiry": null,
+        "expiry_year": 2020,
+        "expiry_month": 10,
+        "symbol_expiry_encoding": "MONTHLY_CODED",
+        "strike": null,
+        "option_type": null,
+        "segment_code": 20,
+        "exchange_code": 11
+      }
+    },
+    {
+      "symbol": "MCX:GOLD20DECFUT",
+      "source": "doc",
+      "expect": {
+        "exchange": "MCX",
+        "segment": "COM",
+        "kind": "FUT",
+        "root": "GOLD",
+        "series": null,
+        "expiry": null,
+        "expiry_year": 2020,
+        "expiry_month": 12,
+        "symbol_expiry_encoding": "MONTHLY_CODED",
+        "strike": null,
+        "option_type": null,
+        "segment_code": 20,
+        "exchange_code": 11
+      }
+    },
+    {
+      "symbol": "MCX:CRUDEOILM26MARFUT",
+      "source": "doc",
+      "expect": {
+        "exchange": "MCX",
+        "segment": "COM",
+        "kind": "FUT",
+        "root": "CRUDEOILM",
+        "series": null,
+        "expiry": null,
+        "expiry_year": 2026,
+        "expiry_month": 3,
+        "symbol_expiry_encoding": "MONTHLY_CODED",
+        "strike": null,
+        "option_type": null,
+        "segment_code": 20,
+        "exchange_code": 11
+      }
+    },
+    {
+      "symbol": "MCX:GOLDPETAL26FEBFUT",
+      "source": "doc",
+      "expect": {
+        "exchange": "MCX",
+        "segment": "COM",
+        "kind": "FUT",
+        "root": "GOLDPETAL",
+        "series": null,
+        "expiry": null,
+        "expiry_year": 2026,
+        "expiry_month": 2,
+        "symbol_expiry_encoding": "MONTHLY_CODED",
+        "strike": null,
+        "option_type": null,
+        "segment_code": 20,
+        "exchange_code": 11
+      }
+    },
+    {
+      "symbol": "NSE:NIFTY20OCT11000CE",
+      "source": "doc",
+      "expect": {
+        "exchange": "NSE",
+        "segment": "FO",
+        "kind": "OPT",
+        "root": "NIFTY",
+        "series": null,
+        "expiry": null,
+        "expiry_year": 2020,
+        "expiry_month": 10,
+        "symbol_expiry_encoding": "MONTHLY_CODED",
+        "strike": "11000",
+        "option_type": "CE",
+        "segment_code": 11,
+        "exchange_code": 10
+      }
+    },
+    {
+      "symbol": "NSE:BANKNIFTY20NOV25000PE",
+      "source": "doc",
+      "expect": {
+        "exchange": "NSE",
+        "segment": "FO",
+        "kind": "OPT",
+        "root": "BANKNIFTY",
+        "series": null,
+        "expiry": null,
+        "expiry_year": 2020,
+        "expiry_month": 11,
+        "symbol_expiry_encoding": "MONTHLY_CODED",
+        "strike": "25000",
+        "option_type": "PE",
+        "segment_code": 11,
+        "exchange_code": 10
+      }
+    },
+    {
+      "symbol": "NSE:NIFTY25MAR23000CE",
+      "source": "doc",
+      "expect": {
+        "exchange": "NSE",
+        "segment": "FO",
+        "kind": "OPT",
+        "root": "NIFTY",
+        "series": null,
+        "expiry": null,
+        "expiry_year": 2025,
+        "expiry_month": 3,
+        "symbol_expiry_encoding": "MONTHLY_CODED",
+        "strike": "23000",
+        "option_type": "CE",
+        "segment_code": 11,
+        "exchange_code": 10
+      }
+    },
+    {
+      "symbol": "NSE:BANKNIFTY25MAR52000PE",
+      "source": "doc",
+      "expect": {
+        "exchange": "NSE",
+        "segment": "FO",
+        "kind": "OPT",
+        "root": "BANKNIFTY",
+        "series": null,
+        "expiry": null,
+        "expiry_year": 2025,
+        "expiry_month": 3,
+        "symbol_expiry_encoding": "MONTHLY_CODED",
+        "strike": "52000",
+        "option_type": "PE",
+        "segment_code": 11,
+        "exchange_code": 10
+      }
+    },
+    {
+      "symbol": "NSE:BANKNIFTY25NOV58900PE",
+      "source": "doc",
+      "expect": {
+        "exchange": "NSE",
+        "segment": "FO",
+        "kind": "OPT",
+        "root": "BANKNIFTY",
+        "series": null,
+        "expiry": null,
+        "expiry_year": 2025,
+        "expiry_month": 11,
+        "symbol_expiry_encoding": "MONTHLY_CODED",
+        "strike": "58900",
+        "option_type": "PE",
+        "segment_code": 11,
+        "exchange_code": 10
+      }
+    },
+    {
+      "symbol": "NSE:SBIN25MAR320PE",
+      "source": "doc",
+      "expect": {
+        "exchange": "NSE",
+        "segment": "FO",
+        "kind": "OPT",
+        "root": "SBIN",
+        "series": null,
+        "expiry": null,
+        "expiry_year": 2025,
+        "expiry_month": 3,
+        "symbol_expiry_encoding": "MONTHLY_CODED",
+        "strike": "320",
+        "option_type": "PE",
+        "segment_code": 11,
+        "exchange_code": 10
+      }
+    },
+    {
+      "symbol": "NSE:ABCAPITAL23JUL190CE",
+      "source": "doc",
+      "expect": {
+        "exchange": "NSE",
+        "segment": "FO",
+        "kind": "OPT",
+        "root": "ABCAPITAL",
+        "series": null,
+        "expiry": null,
+        "expiry_year": 2023,
+        "expiry_month": 7,
+        "symbol_expiry_encoding": "MONTHLY_CODED",
+        "strike": "190",
+        "option_type": "CE",
+        "segment_code": 11,
+        "exchange_code": 10
+      }
+    },
+    {
+      "symbol": "BSE:SENSEX23AUG60400CE",
+      "source": "doc",
+      "expect": {
+        "exchange": "BSE",
+        "segment": "FO",
+        "kind": "OPT",
+        "root": "SENSEX",
+        "series": null,
+        "expiry": null,
+        "expiry_year": 2023,
+        "expiry_month": 8,
+        "symbol_expiry_encoding": "MONTHLY_CODED",
+        "strike": "60400",
+        "option_type": "CE",
+        "segment_code": 11,
+        "exchange_code": 12
+      }
+    },
+    {
+      "symbol": "NSE:USDINR20OCT75CE",
+      "source": "doc",
+      "expect": {
+        "exchange": "NSE",
+        "segment": "CD",
+        "kind": "OPT",
+        "root": "USDINR",
+        "series": null,
+        "expiry": null,
+        "expiry_year": 2020,
+        "expiry_month": 10,
+        "symbol_expiry_encoding": "MONTHLY_CODED",
+        "strike": "75",
+        "option_type": "CE",
+        "segment_code": 12,
+        "exchange_code": 10
+      }
+    },
+    {
+      "symbol": "NSE:GBPINR20NOV80.5PE",
+      "source": "doc",
+      "expect": {
+        "exchange": "NSE",
+        "segment": "CD",
+        "kind": "OPT",
+        "root": "GBPINR",
+        "series": null,
+        "expiry": null,
+        "expiry_year": 2020,
+        "expiry_month": 11,
+        "symbol_expiry_encoding": "MONTHLY_CODED",
+        "strike": "80.5",
+        "option_type": "PE",
+        "segment_code": 12,
+        "exchange_code": 10
+      }
+    },
+    {
+      "symbol": "MCX:CRUDEOIL20OCT4000CE",
+      "source": "doc",
+      "expect": {
+        "exchange": "MCX",
+        "segment": "COM",
+        "kind": "OPT",
+        "root": "CRUDEOIL",
+        "series": null,
+        "expiry": null,
+        "expiry_year": 2020,
+        "expiry_month": 10,
+        "symbol_expiry_encoding": "MONTHLY_CODED",
+        "strike": "4000",
+        "option_type": "CE",
+        "segment_code": 20,
+        "exchange_code": 11
+      }
+    },
+    {
+      "symbol": "MCX:GOLD20DEC40000PE",
+      "source": "doc",
+      "expect": {
+        "exchange": "MCX",
+        "segment": "COM",
+        "kind": "OPT",
+        "root": "GOLD",
+        "series": null,
+        "expiry": null,
+        "expiry_year": 2020,
+        "expiry_month": 12,
+        "symbol_expiry_encoding": "MONTHLY_CODED",
+        "strike": "40000",
+        "option_type": "PE",
+        "segment_code": 20,
+        "exchange_code": 11
+      }
+    },
+    {
+      "symbol": "MCX:CRUDEOIL25DEC5500PE",
+      "source": "doc",
+      "expect": {
+        "exchange": "MCX",
+        "segment": "COM",
+        "kind": "OPT",
+        "root": "CRUDEOIL",
+        "series": null,
+        "expiry": null,
+        "expiry_year": 2025,
+        "expiry_month": 12,
+        "symbol_expiry_encoding": "MONTHLY_CODED",
+        "strike": "5500",
+        "option_type": "PE",
+        "segment_code": 20,
+        "exchange_code": 11
+      }
+    },
+    {
+      "symbol": "NSE:NIFTY2010811000CE",
+      "source": "doc",
+      "expect": {
+        "exchange": "NSE",
+        "segment": "FO",
+        "kind": "OPT",
+        "root": "NIFTY",
+        "series": null,
+        "expiry": "2020-01-08",
+        "expiry_year": 2020,
+        "expiry_month": 1,
+        "expiry_day": 8,
+        "symbol_expiry_encoding": "WEEKLY_CODED",
+        "strike": "11000",
+        "option_type": "CE",
+        "segment_code": 11,
+        "exchange_code": 10
+      }
+    },
+    {
+      "symbol": "NSE:NIFTY20O0811000CE",
+      "source": "doc",
+      "expect": {
+        "exchange": "NSE",
+        "segment": "FO",
+        "kind": "OPT",
+        "root": "NIFTY",
+        "series": null,
+        "expiry": "2020-10-08",
+        "expiry_year": 2020,
+        "expiry_month": 10,
+        "expiry_day": 8,
+        "symbol_expiry_encoding": "WEEKLY_CODED",
+        "strike": "11000",
+        "option_type": "CE",
+        "segment_code": 11,
+        "exchange_code": 10
+      }
+    },
+    {
+      "symbol": "NSE:NIFTY20D1025000CE",
+      "source": "doc",
+      "expect": {
+        "exchange": "NSE",
+        "segment": "FO",
+        "kind": "OPT",
+        "root": "NIFTY",
+        "series": null,
+        "expiry": "2020-12-10",
+        "expiry_year": 2020,
+        "expiry_month": 12,
+        "expiry_day": 10,
+        "symbol_expiry_encoding": "WEEKLY_CODED",
+        "strike": "25000",
+        "option_type": "CE",
+        "segment_code": 11,
+        "exchange_code": 10
+      }
+    },
+    {
+      "symbol": "NSE:NIFTY2292217000CE",
+      "source": "doc",
+      "expect": {
+        "exchange": "NSE",
+        "segment": "FO",
+        "kind": "OPT",
+        "root": "NIFTY",
+        "series": null,
+        "expiry": "2022-09-22",
+        "expiry_year": 2022,
+        "expiry_month": 9,
+        "expiry_day": 22,
+        "symbol_expiry_encoding": "WEEKLY_CODED",
+        "strike": "17000",
+        "option_type": "CE",
+        "segment_code": 11,
+        "exchange_code": 10
+      }
+    },
+    {
+      "symbol": "NSE:NIFTY2510923000CE",
+      "source": "doc",
+      "expect": {
+        "exchange": "NSE",
+        "segment": "FO",
+        "kind": "OPT",
+        "root": "NIFTY",
+        "series": null,
+        "expiry": "2025-01-09",
+        "expiry_year": 2025,
+        "expiry_month": 1,
+        "expiry_day": 9,
+        "symbol_expiry_encoding": "WEEKLY_CODED",
+        "strike": "23000",
+        "option_type": "CE",
+        "segment_code": 11,
+        "exchange_code": 10
+      }
+    },
+    {
+      "symbol": "NSE:NIFTY2632423050CE",
+      "source": "doc",
+      "expect": {
+        "exchange": "NSE",
+        "segment": "FO",
+        "kind": "OPT",
+        "root": "NIFTY",
+        "series": null,
+        "expiry": "2026-03-24",
+        "expiry_year": 2026,
+        "expiry_month": 3,
+        "expiry_day": 24,
+        "symbol_expiry_encoding": "WEEKLY_CODED",
+        "strike": "23050",
+        "option_type": "CE",
+        "segment_code": 11,
+        "exchange_code": 10
+      }
+    },
+    {
+      "symbol": "NSE:NIFTY2632423150PE",
+      "source": "doc",
+      "expect": {
+        "exchange": "NSE",
+        "segment": "FO",
+        "kind": "OPT",
+        "root": "NIFTY",
+        "series": null,
+        "expiry": "2026-03-24",
+        "expiry_year": 2026,
+        "expiry_month": 3,
+        "expiry_day": 24,
+        "symbol_expiry_encoding": "WEEKLY_CODED",
+        "strike": "23150",
+        "option_type": "PE",
+        "segment_code": 11,
+        "exchange_code": 10
+      }
+    },
+    {
+      "symbol": "BSE:SENSEX2381161000CE",
+      "source": "doc",
+      "expect": {
+        "exchange": "BSE",
+        "segment": "FO",
+        "kind": "OPT",
+        "root": "SENSEX",
+        "series": null,
+        "expiry": "2023-08-11",
+        "expiry_year": 2023,
+        "expiry_month": 8,
+        "expiry_day": 11,
+        "symbol_expiry_encoding": "WEEKLY_CODED",
+        "strike": "61000",
+        "option_type": "CE",
+        "segment_code": 11,
+        "exchange_code": 12
+      }
+    },
+    {
+      "symbol": "BSE:SENSEX2640976500CE",
+      "source": "doc",
+      "expect": {
+        "exchange": "BSE",
+        "segment": "FO",
+        "kind": "OPT",
+        "root": "SENSEX",
+        "series": null,
+        "expiry": "2026-04-09",
+        "expiry_year": 2026,
+        "expiry_month": 4,
+        "expiry_day": 9,
+        "symbol_expiry_encoding": "WEEKLY_CODED",
+        "strike": "76500",
+        "option_type": "CE",
+        "segment_code": 11,
+        "exchange_code": 12
+      }
+    },
+    {
+      "symbol": "NSE:USDINR20O0875CE",
+      "source": "doc",
+      "expect": {
+        "exchange": "NSE",
+        "segment": "CD",
+        "kind": "OPT",
+        "root": "USDINR",
+        "series": null,
+        "expiry": "2020-10-08",
+        "expiry_year": 2020,
+        "expiry_month": 10,
+        "expiry_day": 8,
+        "symbol_expiry_encoding": "WEEKLY_CODED",
+        "strike": "75",
+        "option_type": "CE",
+        "segment_code": 12,
+        "exchange_code": 10
+      }
+    },
+    {
+      "symbol": "NSE:GBPINR20N0580.5PE",
+      "source": "doc",
+      "expect": {
+        "exchange": "NSE",
+        "segment": "CD",
+        "kind": "OPT",
+        "root": "GBPINR",
+        "series": null,
+        "expiry": "2020-11-05",
+        "expiry_year": 2020,
+        "expiry_month": 11,
+        "expiry_day": 5,
+        "symbol_expiry_encoding": "WEEKLY_CODED",
+        "strike": "80.5",
+        "option_type": "PE",
+        "segment_code": 12,
+        "exchange_code": 10
+      }
+    },
+    {
+      "symbol": "NSE:USDINR20D1075CE",
+      "source": "doc",
+      "expect": {
+        "exchange": "NSE",
+        "segment": "CD",
+        "kind": "OPT",
+        "root": "USDINR",
+        "series": null,
+        "expiry": "2020-12-10",
+        "expiry_year": 2020,
+        "expiry_month": 12,
+        "expiry_day": 10,
+        "symbol_expiry_encoding": "WEEKLY_CODED",
+        "strike": "75",
+        "option_type": "CE",
+        "segment_code": 12,
+        "exchange_code": 10
+      }
+    },
+    {
+      "symbol": "NSE:BANKNIFTY2510952000CE",
+      "source": "constructed",
+      "expect": {
+        "exchange": "NSE",
+        "segment": "FO",
+        "kind": "OPT",
+        "root": "BANKNIFTY",
+        "series": null,
+        "expiry": "2025-01-09",
+        "expiry_year": 2025,
+        "expiry_month": 1,
+        "expiry_day": 9,
+        "symbol_expiry_encoding": "WEEKLY_CODED",
+        "strike": "52000",
+        "option_type": "CE",
+        "segment_code": 11,
+        "exchange_code": 10
+      }
+    },
+    {
+      "symbol": "NSE:NIFTYNXT502510923000CE",
+      "source": "constructed",
+      "expect": {
+        "exchange": "NSE",
+        "segment": "FO",
+        "kind": "OPT",
+        "root": "NIFTYNXT50",
+        "series": null,
+        "expiry": "2025-01-09",
+        "expiry_year": 2025,
+        "expiry_month": 1,
+        "expiry_day": 9,
+        "symbol_expiry_encoding": "WEEKLY_CODED",
+        "strike": "23000",
+        "option_type": "CE",
+        "segment_code": 11,
+        "exchange_code": 10
+      }
+    },
+    {
+      "symbol": "NSE:NIFTYNXT5026MARFUT",
+      "source": "constructed",
+      "expect": {
+        "exchange": "NSE",
+        "segment": "FO",
+        "kind": "FUT",
+        "root": "NIFTYNXT50",
+        "series": null,
+        "expiry": null,
+        "expiry_year": 2026,
+        "expiry_month": 3,
+        "symbol_expiry_encoding": "MONTHLY_CODED",
+        "strike": null,
+        "option_type": null,
+        "segment_code": 11,
+        "exchange_code": 10
+      }
+    },
+    {
+      "symbol": "BSE:SENSEX5025NOV25000CE",
+      "source": "constructed",
+      "expect": {
+        "exchange": "BSE",
+        "segment": "FO",
+        "kind": "OPT",
+        "root": "SENSEX50",
+        "series": null,
+        "expiry": null,
+        "expiry_year": 2025,
+        "expiry_month": 11,
+        "symbol_expiry_encoding": "MONTHLY_CODED",
+        "strike": "25000",
+        "option_type": "CE",
+        "segment_code": 11,
+        "exchange_code": 12
+      }
+    },
+    {
+      "symbol": "NSE:MARUTI25MAR11000CE",
+      "source": "constructed",
+      "expect": {
+        "exchange": "NSE",
+        "segment": "FO",
+        "kind": "OPT",
+        "root": "MARUTI",
+        "series": null,
+        "expiry": null,
+        "expiry_year": 2025,
+        "expiry_month": 3,
+        "symbol_expiry_encoding": "MONTHLY_CODED",
+        "strike": "11000",
+        "option_type": "CE",
+        "segment_code": 11,
+        "exchange_code": 10
+      }
+    },
+    {
+      "symbol": "NSE:MARICO2510923000CE",
+      "source": "constructed",
+      "expect": {
+        "exchange": "NSE",
+        "segment": "FO",
+        "kind": "OPT",
+        "root": "MARICO",
+        "series": null,
+        "expiry": "2025-01-09",
+        "expiry_year": 2025,
+        "expiry_month": 1,
+        "expiry_day": 9,
+        "symbol_expiry_encoding": "WEEKLY_CODED",
+        "strike": "23000",
+        "option_type": "CE",
+        "segment_code": 11,
+        "exchange_code": 10
+      }
+    },
+    {
+      "symbol": "NSE:MARICO20O0811000CE",
+      "source": "constructed",
+      "expect": {
+        "exchange": "NSE",
+        "segment": "FO",
+        "kind": "OPT",
+        "root": "MARICO",
+        "series": null,
+        "expiry": "2020-10-08",
+        "expiry_year": 2020,
+        "expiry_month": 10,
+        "expiry_day": 8,
+        "symbol_expiry_encoding": "WEEKLY_CODED",
+        "strike": "11000",
+        "option_type": "CE",
+        "segment_code": 11,
+        "exchange_code": 10
+      }
+    },
+    {
+      "symbol": "NSE:USDINR2280580.5CE",
+      "source": "constructed",
+      "expect": {
+        "exchange": "NSE",
+        "segment": "CD",
+        "kind": "OPT",
+        "root": "USDINR",
+        "series": null,
+        "expiry": "2022-08-05",
+        "expiry_year": 2022,
+        "expiry_month": 8,
+        "expiry_day": 5,
+        "symbol_expiry_encoding": "WEEKLY_CODED",
+        "strike": "80.5",
+        "option_type": "CE",
+        "segment_code": 12,
+        "exchange_code": 10
+      }
+    },
+    {
+      "symbol": "NSE:M&M25OCTFUT",
+      "source": "constructed",
+      "expect": {
+        "exchange": "NSE",
+        "segment": "FO",
+        "kind": "FUT",
+        "root": "M&M",
+        "series": null,
+        "expiry": null,
+        "expiry_year": 2025,
+        "expiry_month": 10,
+        "symbol_expiry_encoding": "MONTHLY_CODED",
+        "strike": null,
+        "option_type": null,
+        "segment_code": 11,
+        "exchange_code": 10
+      }
+    },
+    {
+      "symbol": "NSE:BAJAJ-AUTO25OCTFUT",
+      "source": "constructed",
+      "expect": {
+        "exchange": "NSE",
+        "segment": "FO",
+        "kind": "FUT",
+        "root": "BAJAJ-AUTO",
+        "series": null,
+        "expiry": null,
+        "expiry_year": 2025,
+        "expiry_month": 10,
+        "symbol_expiry_encoding": "MONTHLY_CODED",
+        "strike": null,
+        "option_type": null,
+        "segment_code": 11,
+        "exchange_code": 10
+      }
+    },
+    {
+      "symbol": "NSE:M&M-EQ",
+      "source": "constructed",
+      "expect": {
+        "exchange": "NSE",
+        "segment": "CM",
+        "segment_code": 10,
+        "kind": "SPOT",
+        "root": "M&M",
+        "series": "EQ",
+        "instrument_class": "EQUITY",
+        "expiry": null,
+        "symbol_expiry_encoding": "NONE",
+        "strike": null,
+        "option_type": null,
+        "exchange_code": 10
+      }
+    },
+    {
+      "symbol": "NSE:BAJAJ-AUTO-EQ",
+      "source": "constructed",
+      "expect": {
+        "exchange": "NSE",
+        "segment": "CM",
+        "segment_code": 10,
+        "kind": "SPOT",
+        "root": "BAJAJ-AUTO",
+        "series": "EQ",
+        "instrument_class": "EQUITY",
+        "expiry": null,
+        "symbol_expiry_encoding": "NONE",
+        "strike": null,
+        "option_type": null,
+        "exchange_code": 10
+      }
+    }
+  ],
+  "rejects": [
+    {
+      "symbol": "NSE:ABC225125100CE",
+      "source": "constructed",
+      "error": "ambiguous",
+      "note": "Two valid weekly splits, ABC expiring 2022-05-12 at strike 5100 and ABC2 expiring 2025-01-25 at strike 100. Neither root is registered, so nothing separates them and the parser must refuse rather than pick."
+    },
+    {
+      "symbol": "NSE:NIFTY2500923000CE",
+      "source": "constructed",
+      "error": "parse",
+      "note": "Month token 0. The weekly alphabet is 1-9 then O, N, D and has no zero, so every split is rejected."
+    },
+    {
+      "symbol": "NSE:NIFTY2513223000CE",
+      "source": "constructed",
+      "error": "parse",
+      "note": "Day 32. Every split fails either the calendar or the year window."
+    },
+    {
+      "symbol": "NSE:NIFTY2011300000CE",
+      "source": "constructed",
+      "error": "parse",
+      "note": "Strike 00000. A strike is written without leading zeros and must be strictly positive."
+    },
+    {
+      "symbol": "NSE:GARBAGE",
+      "source": "constructed",
+      "error": "parse",
+      "note": "No FUT suffix, no CE or PE suffix, no series hyphen."
+    },
+    {
+      "symbol": "XYZ:NIFTY25MARFUT",
+      "source": "constructed",
+      "error": "parse",
+      "note": "Exchange prefix is one of NSE, BSE, MCX and nothing else."
+    },
+    {
+      "symbol": "NIFTY25MARFUT",
+      "source": "constructed",
+      "error": "parse",
+      "note": "No exchange prefix at all."
+    }
+  ]
+}

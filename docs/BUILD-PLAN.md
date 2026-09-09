@@ -112,8 +112,9 @@ Deliverables: the single DuckDB instance with the pinned config from DATA-MODEL.
 full DDL and macros applied idempotently at startup, the one writer task consuming an
 `asyncio.Queue` of `WriteOp` with one transaction per op, reader helpers on fresh cursors through
 `run_in_threadpool` under a semaphore of 6, and `CANDLE_SCHEMA` plus `candles_to_arrow` mapping
-by the returned `columns` array with the fixed +19800 IST offset and the currency-segment
-precision guard. `duck.py` raises on any attempt to open read-only or to `ATTACH` the live file.
+by the returned `columns` array with the fixed +19800 IST offset and DECIMAL(11,4) prices, where
+a value that would lose precision raises rather than rounds. There is no currency-segment guard:
+DECIMAL(11,4) represents the 0.0025 currency tick exactly. `duck.py` raises on any attempt to open read-only or to `ATTACH` the live file.
 
 ### W04 Field encryption and the key hierarchy
 

@@ -401,12 +401,17 @@ the exact task and not at the start of the job.
 
 ### 7.3 Why refresh is never assumed
 
-The refresh flow requires the user's PIN (a fourth secret beyond app id, app secret and redirect
-URI), returns no rotated refresh token so the 15 day clock is absolute, and is documented as
-discontinued from 1 April. The scheduler is therefore architected around `needs_reauth` as a
-first-class parked state with visible notification, never around a retry loop that assumes
-unattended refresh will work. Storing the PIN is optional and off by default, and the UI states
-plainly what storing it buys and what it costs.
+SEBI discontinued the refresh token flow from 1 April 2026, so unattended refresh is not possible
+at all. There is no PIN field anywhere in the product: it would be a fourth secret to protect and
+it buys nothing now that the flow it unlocked is gone. The scheduler is therefore architected
+around `needs_reauth` as a first-class parked state with visible notification, never around a
+retry loop that assumes unattended refresh will work.
+
+Token loss is scheduled, not merely detected. A built-in schedule fires daily at 03:00 IST and
+clears the access token and the session. Running jobs are not failed by it: they checkpoint, move
+to the parked awaiting-authentication state described above, and resume automatically after the
+user's next successful login. Treating the daily logout as a planned event rather than as a
+surprise expiry is what makes the resume path ordinary and testable instead of exceptional.
 
 ---
 
