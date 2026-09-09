@@ -36,6 +36,8 @@ __all__ = [
     "CSRF_HEADER_NAME",
     "DEV_ORIGIN",
     "PROD_ORIGIN",
+    "DEV_ORIGIN_TLS",
+    "PROD_ORIGIN_TLS",
     "DEFAULT_ALLOWED_ORIGINS",
     "DEFAULT_EXEMPT_PATHS",
     "DEFAULT_SESSIONLESS_PATHS",
@@ -54,13 +56,23 @@ SAFE_METHODS: frozenset[str] = frozenset({"GET", "HEAD", "OPTIONS", "TRACE"})
 
 CSRF_HEADER_NAME = "x-csrf-token"
 
-DEV_ORIGIN = "https://127.0.0.1:5173"
-PROD_ORIGIN = "https://127.0.0.1:8000"
+DEV_ORIGIN = "http://127.0.0.1:5173"
+PROD_ORIGIN = "http://127.0.0.1:8000"
+
+# Both schemes are allowed for both loopback ports. The scheme the server serves is dictated by the
+# redirect URI registered with Fyers and can be changed there, and an allowlist that silently stops
+# matching after such a change fails as a bare "did not come from the application" with nothing
+# naming the scheme as the cause. Allowing the unused scheme costs nothing: no browser will present
+# an origin the server is not serving, and all four entries are loopback on a fixed port.
+DEV_ORIGIN_TLS = "https://127.0.0.1:5173"
+PROD_ORIGIN_TLS = "https://127.0.0.1:8000"
 
 # The host is 127.0.0.1 and never `localhost`. Cookies ignore the port but not the host, so
 # same-host different-port is what makes the session cookie set by the backend on the OAuth
 # callback visible to the Vite dev origin.
-DEFAULT_ALLOWED_ORIGINS: frozenset[str] = frozenset({DEV_ORIGIN, PROD_ORIGIN})
+DEFAULT_ALLOWED_ORIGINS: frozenset[str] = frozenset(
+    {DEV_ORIGIN, PROD_ORIGIN, DEV_ORIGIN_TLS, PROD_ORIGIN_TLS}
+)
 
 # Exactly one path. `GET /fyers/callback` is a cross-site top-level navigation from Fyers, so it
 # can carry no header and no matching Origin. It is protected instead by the single-use `state`

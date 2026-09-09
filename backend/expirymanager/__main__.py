@@ -18,11 +18,13 @@ from pathlib import Path  # noqa: E402
 from expirymanager import paths as paths_module  # noqa: E402
 from expirymanager.logging_setup import configure_logging  # noqa: E402
 from expirymanager.version import APP_NAME, __version__  # noqa: E402
+from expirymanager import runtime_scheme  # noqa: E402
 
-# Fixed by the registered Fyers redirect URI, https://127.0.0.1:8000/fyers/callback, which Fyers
-# matches exactly. Not configurable, and not worth a setting that can only ever be wrong.
-HOST = "127.0.0.1"
-PORT = 8000
+# Fixed by the registered Fyers redirect URI, which Fyers matches exactly. The host and port are
+# not configurable; the scheme is, because the registered URI can be re-registered and the two must
+# agree. Default http, matching what is registered today. Pass --https to serve TLS instead.
+HOST = runtime_scheme.HOST
+PORT = runtime_scheme.PORT
 APP_FACTORY = "expirymanager.app:create_app"
 
 TLS_BANNER = (
@@ -32,9 +34,15 @@ TLS_BANNER = (
 )
 
 NO_TLS_BANNER = (
-    "TLS: no certificate was found and none could be generated, so the server is starting on\n"
-    "     plain HTTP. Fyers OAuth will not complete against an http redirect URI. Restart once\n"
-    "     the certificate can be created."
+    "TLS: none. This server speaks plain HTTP on loopback.\n"
+    "     The redirect URI registered with Fyers must therefore read\n"
+    "     http://127.0.0.1:8000/fyers/callback, with no s. Fyers matches it exactly, so a\n"
+    "     mismatch fails the login rather than warning about it. Pass --https to serve TLS."
+)
+
+TLS_UNAVAILABLE_BANNER = (
+    "TLS: --https was requested but no certificate could be created, so the server is not\n"
+    "     starting. Fix the data directory permissions, or drop --https to serve plain HTTP."
 )
 
 log = logging.getLogger(__name__)
@@ -73,6 +81,14 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Prepare the data directory, logging and TLS, report what was found, then exit.",
     )
+    parser.add_argument(
+        "--https",
+        action="store_true",
+        help=(
+            "Serve TLS from a self-signed certificate instead of plain HTTP. Only correct when "
+            "the redirect URI registered with Fyers also reads https."
+        ),
+    )
     return parser
 
 
@@ -87,7 +103,9 @@ def prepare(args: argparse.Namespace) -> tuple[paths_module.Paths, tuple[Path, P
         json_console=args.json_logs,
     )
 
-    tls = paths_module.ensure_tls_material(paths)
+    # TLS material is only generated when it is actually going to be used. Generating a
+    # certificate for an http server leaves an unused private key on disk for no benefit.
+    tls = paths_module.ensure_tls_material(paths) if args.https else None
     return paths, tls
 
 
@@ -99,6 +117,12 @@ def main(argv: list[str] | None = None) -> int:
     except paths_module.PathsError as exc:
         print(f"{APP_NAME} cannot start.\n{exc}", file=sys.stderr)
         return 1
+
+    if args.https and tls is None:
+        print(f"{APP_NAME} cannot start.\n{TLS_UNAVAILABLE_BANNER}", file=sys.stderr)
+        return 1
+
+    runtime_scheme.set_https(tls is not None)
 
     print(f"{APP_NAME} {__version__}")
     print(f"Data directory: {paths.root}")

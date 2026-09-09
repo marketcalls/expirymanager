@@ -11,6 +11,8 @@ Every credential in this file is synthetic.
 
 from __future__ import annotations
 
+from expirymanager import runtime_scheme
+
 import time
 
 import pytest
@@ -319,13 +321,19 @@ class TestCookies:
         csrf_cookie = next(c for c in cookies if c.startswith(f"{CSRF_COOKIE_NAME}="))
 
         assert "HttpOnly" in session_cookie
-        assert "Secure" in session_cookie
+        # Secure follows the scheme the server serves. Asserting it unconditionally would
+        # encode a contract that breaks login on http, where the browser accepts the
+        # cookie and then never sends it back.
+        assert ("Secure" in session_cookie) is runtime_scheme.is_https()
         assert "samesite=lax" in session_cookie.lower()
         assert "Path=/" in session_cookie
         assert "Domain=" not in session_cookie
         # The frontend has to read this one to echo it in X-CSRF-Token.
         assert "HttpOnly" not in csrf_cookie
-        assert "Secure" in csrf_cookie
+        # Secure follows the scheme the server serves. Asserting it unconditionally would
+        # encode a contract that breaks login on http, where the browser accepts the
+        # cookie and then never sends it back.
+        assert ("Secure" in csrf_cookie) is runtime_scheme.is_https()
 
     def test_only_the_hash_of_the_session_id_is_stored(self, client, app):
         do_setup(client)

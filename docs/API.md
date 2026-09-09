@@ -2,11 +2,11 @@
 
 All routes are under `/api/v1`, **with exactly one exception**: `GET /fyers/callback` is mounted at
 the root, because the Fyers app's registered redirect URI is literally
-`https://127.0.0.1:8000/fyers/callback` and Fyers matches it exactly.
+`http://127.0.0.1:8000/fyers/callback` and Fyers matches it exactly.
 
 The server speaks HTTPS on 127.0.0.1:8000 with a self-signed certificate it generates on first
-run. There is exactly one browser origin in development (`https://127.0.0.1:5173`, with the Vite
-proxy carrying `/api`) and one in production (`https://127.0.0.1:8000`), so `CORSMiddleware` is
+run. There is exactly one browser origin in development (`http://127.0.0.1:5173`, with the Vite
+proxy carrying `/api`) and one in production (`http://127.0.0.1:8000`), so `CORSMiddleware` is
 never added to this codebase.
 
 ---
@@ -95,7 +95,7 @@ Response:
 
 ```json
 { "credential_id": "uuid", "label": "Primary", "app_id": "XXXXXXXXXX-100",
-  "redirect_uri": "https://127.0.0.1:8000/fyers/callback",
+  "redirect_uri": "http://127.0.0.1:8000/fyers/callback",
   "plan": "standard", "app_secret_configured": true, "pin_configured": false,
   "connected": true, "token_state": "active",
   "token_expires_at": "2026-09-10T01:30:00+05:30",
@@ -116,7 +116,7 @@ revokes any existing token.
 There is no PIN field. SEBI discontinued the refresh token flow from 1 April 2026, so unattended
 refresh is not possible and a stored PIN would be a fourth secret that buys nothing.
 Errors: `400 invalid_redirect_uri` (must be an absolute https URL; the default and the value the
-setup wizard offers with a copy button is `https://127.0.0.1:8000/fyers/callback`, which is what
+setup wizard offers with a copy button is `http://127.0.0.1:8000/fyers/callback`, which is what
 must be registered on the Fyers dashboard because Fyers matches it exactly).
 
 ### POST /api/v1/broker/fyers/connect

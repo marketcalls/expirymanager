@@ -85,7 +85,7 @@ export function describeLoginFailure(error: unknown, now: number = Date.now()): 
     return {
       kind: 'unreachable',
       message:
-        'The ExpiryManager backend did not answer on https://127.0.0.1:8000. Check that the ' +
+        'The ExpiryManager backend did not answer on http://127.0.0.1:8000. Check that the ' +
         'process is still running, then try again.',
       deadline: null,
     }

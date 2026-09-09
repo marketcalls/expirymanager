@@ -127,12 +127,13 @@ def test_the_redirect_uri_is_percent_encoded_in_the_query() -> None:
     url = build_authorize_url(
         client_id=FAKE_APP_ID, redirect_uri=DEFAULT_REDIRECT_URI, state="s"
     )
-    assert "redirect_uri=https%3A%2F%2F127.0.0.1%3A8000%2Ffyers%2Fcallback" in url
+    assert "redirect_uri=http%3A%2F%2F127.0.0.1%3A8000%2Ffyers%2Fcallback" in url
 
 
 def test_the_registered_redirect_uri_is_the_exact_documented_string() -> None:
     # Fyers matches this character for character. Scheme, host, port and root path all matter.
-    assert DEFAULT_REDIRECT_URI == "https://127.0.0.1:8000/fyers/callback"
+    # The scheme follows what is registered on the Fyers dashboard, which is http today.
+    assert DEFAULT_REDIRECT_URI == "http://127.0.0.1:8000/fyers/callback"
 
 
 def test_the_authorize_url_refuses_missing_parts() -> None:

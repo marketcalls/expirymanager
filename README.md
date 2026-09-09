@@ -35,16 +35,18 @@ backtesting engine can read the store directly without a rewrite.
 There is no `.env` file and no environment variable to set. Nothing needs editing before the app
 runs, and nothing outside the app data directory is ever written.
 
-1. Start the app and open `https://127.0.0.1:8000`.
+1. Start the app and open `http://127.0.0.1:8000`.
 
-   Note the **s**. The app serves HTTPS on 127.0.0.1 port 8000, because that is what the Fyers
-   redirect URI requires, and it generates its own certificate on first run. The certificate is
-   self-signed, so the browser shows a warning on the first visit. That is expected, and the
-   startup banner says so. Accept it once and the warning does not return.
+   Plain HTTP, deliberately. The scheme is not a preference: Fyers matches the
+   registered redirect URI character for character, and the one registered for this
+   app is `http://127.0.0.1:8000/fyers/callback`. Loopback is the one place http is
+   legitimate, since a self-signed certificate on 127.0.0.1 protects nothing that
+   matters. If you re-register the URI as https, start the app with `--https` and it
+   generates its own certificate; the session cookie then carries `Secure` to match.
 2. **Step 1, set a local passcode.** This protects the app itself. It is hashed with Argon2id and
    is never stored in plaintext.
 3. **Step 2, paste your Fyers app credentials.** App id and app secret, taken from your Fyers app
-   registration. The redirect URL is fixed at `https://127.0.0.1:8000/fyers/callback` and the
+   registration. The redirect URL is fixed at `http://127.0.0.1:8000/fyers/callback` and the
    screen shows it with a copy button: register exactly that string on the Fyers dashboard,
    because Fyers matches it character for character. The secret is encrypted with AES-256-GCM before it reaches the database, under a key
    held in a 0600 file outside the database, and it is never displayed again, not even masked.
@@ -84,7 +86,7 @@ open the download sheet.
 | Python | 3.14.6 | Anything from 3.12 works, 3.14.6 is what this is built and tested against. |
 | Node | 26.4.0 | Needed only to build the frontend. Vite 8 requires `^20.19.0 \|\| >=22.12.0`. |
 | npm | 11.17.0 | |
-| A Fyers account | any | With an app registered whose redirect URI is exactly `https://127.0.0.1:8000/fyers/callback`. |
+| A Fyers account | any | With an app registered whose redirect URI is exactly `http://127.0.0.1:8000/fyers/callback`. |
 | Disk | 10 to 20 GB | The four seed underlyings over 2022 to 2026 at one minute land around 6 to 9 GB. |
 | Network | outbound https | To `api-t1.fyers.in` and `public.fyers.in`. |
 
@@ -110,7 +112,7 @@ uv sync
 uv run expirymanager
 ```
 
-Then open `https://127.0.0.1:8000` and accept the self-signed certificate once.
+Then open `http://127.0.0.1:8000` and accept the self-signed certificate once.
 
 That is the whole thing: one process serving the API and the built frontend from the same origin.
 
@@ -120,14 +122,14 @@ Two terminals, because the frontend needs the Vite dev server:
 
 ```
 # terminal 1
-cd backend && uv run expirymanager --reload     # https://127.0.0.1:8000
+cd backend && uv run expirymanager --reload     # http://127.0.0.1:8000
 
 # terminal 2
-cd frontend && npm run dev                      # https://127.0.0.1:5173
+cd frontend && npm run dev                      # http://127.0.0.1:5173
 ```
 
 The dev server serves HTTPS using the same certificate the backend generated, and proxies `/api`
-to the backend. Use `https://127.0.0.1:5173` and not `localhost`: cookies ignore the port but not
+to the backend. Use `http://127.0.0.1:5173` and not `localhost`: cookies ignore the port but not
 the host, and the same host is what lets the session cookie set by the OAuth callback on port 8000
 be seen by the dev origin on port 5173.
 

@@ -23,6 +23,8 @@ because changing it breaks OAuth silently rather than loudly.
 
 from __future__ import annotations
 
+from expirymanager import runtime_scheme
+
 import hashlib
 import logging
 import secrets
@@ -67,10 +69,14 @@ COOKIE_PATH = "/"
 # redirect, which is the one cross-site top-level navigation this app depends on.
 COOKIE_SAMESITE = "lax"
 
-# Unconditionally true, in development as well as in production, because the server speaks https on
-# 127.0.0.1:8000 in both. That is not a preference: the registered Fyers redirect URI is
-# `https://127.0.0.1:8000/fyers/callback` and Fyers matches it exactly, so there is no http mode.
-COOKIE_SECURE = True
+# Follows the scheme the server is actually serving on, which the registered Fyers redirect URI
+# dictates. It must NOT be hardcoded true: a `Secure` cookie is never sent back over http, so
+# asserting it while serving http does not harden anything, it breaks login silently. The browser
+# accepts the Set-Cookie, declines to send it, and every later request looks unauthenticated with
+# no error to trace. Resolved per call rather than at import, because a default argument is bound
+# once at function definition and would freeze whatever the value was at import time.
+def cookie_secure() -> bool:
+    return runtime_scheme.is_https()
 
 # No `Domain=` attribute is ever set, so the cookies are host-only, which is what a loopback app
 # wants. The `__Host-` prefix is deliberately not used: it would only re-assert Secure, Path=/ and
@@ -409,7 +415,7 @@ def set_session_cookies(
     response,  # type: ignore[no-untyped-def]
     issued: IssuedSession,
     *,
-    secure: bool = COOKIE_SECURE,
+    secure: bool | None = None,
 ) -> None:
     """Write both cookies for a freshly issued session.
 
@@ -418,6 +424,8 @@ def set_session_cookies(
     mechanism: an attacker on another origin can cause a request but cannot read the cookie to
     populate the header.
     """
+    if secure is None:
+        secure = cookie_secure()
     max_age = int(ABSOLUTE_TIMEOUT.total_seconds())
     response.set_cookie(
         SESSION_COOKIE_NAME,
@@ -442,10 +450,12 @@ def set_session_cookies(
 def clear_session_cookies(
     response,  # type: ignore[no-untyped-def]
     *,
-    secure: bool = COOKIE_SECURE,
+    secure: bool | None = None,
 ) -> None:
     """Expire both cookies. The attributes must match the ones they were set with or the browser
     keeps the originals."""
+    if secure is None:
+        secure = cookie_secure()
     for name, httponly in ((SESSION_COOKIE_NAME, True), (CSRF_COOKIE_NAME, False)):
         response.delete_cookie(
             name,

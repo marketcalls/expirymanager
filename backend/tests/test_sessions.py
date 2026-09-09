@@ -10,6 +10,8 @@ are tested at the second instead of being approximated.
 
 from __future__ import annotations
 
+from expirymanager import runtime_scheme
+
 import uuid
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -287,7 +289,7 @@ class TestCookies:
 
     def test_samesite_is_lax_and_secure_is_unconditional(self):
         assert sessions_module.COOKIE_SAMESITE == "lax"
-        assert sessions_module.COOKIE_SECURE is True
+        assert sessions_module.cookie_secure() is runtime_scheme.is_https()
 
     def test_set_session_cookies_emits_both_with_the_right_flags(self, manager, user_id):
         from starlette.responses import Response
@@ -300,14 +302,20 @@ class TestCookies:
         csrf_cookie = next(c.decode() for c in cookies if c.startswith(CSRF_COOKIE_NAME.encode()))
 
         assert "HttpOnly" in session_cookie
-        assert "Secure" in session_cookie
+        # Secure follows the scheme the server serves. Asserting it unconditionally would
+        # encode a contract that breaks login on http, where the browser accepts the
+        # cookie and then never sends it back.
+        assert ("Secure" in session_cookie) is runtime_scheme.is_https()
         assert "SameSite=lax" in session_cookie.replace("SameSite=Lax", "SameSite=lax")
         assert "Path=/" in session_cookie
         assert "Domain=" not in session_cookie
 
         # The CSRF cookie must be readable by script or the frontend cannot echo it in the header.
         assert "HttpOnly" not in csrf_cookie
-        assert "Secure" in csrf_cookie
+        # Secure follows the scheme the server serves. Asserting it unconditionally would
+        # encode a contract that breaks login on http, where the browser accepts the
+        # cookie and then never sends it back.
+        assert ("Secure" in csrf_cookie) is runtime_scheme.is_https()
 
     def test_clear_session_cookies_expires_both(self, manager, user_id):
         from starlette.responses import Response

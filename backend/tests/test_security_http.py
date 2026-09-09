@@ -10,6 +10,8 @@ unconditionally `Secure` and would simply be dropped over http.
 
 from __future__ import annotations
 
+from expirymanager import runtime_scheme
+
 import json
 import logging
 import uuid
@@ -823,4 +825,4 @@ class TestCookieContract:
         assert sessions_module.COOKIE_SAMESITE == "lax"
 
     def test_secure_is_unconditional(self):
-        assert sessions_module.COOKIE_SECURE is True
+        assert sessions_module.cookie_secure() is runtime_scheme.is_https()

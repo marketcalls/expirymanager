@@ -37,7 +37,7 @@ from tests.fyers_fake_transport import (
     token_valid_for,
 )
 
-BASE_URL = "https://127.0.0.1:8000"
+BASE_URL = "http://127.0.0.1:8000"
 
 USERNAME = "operator"
 PASSCODE = "correct-horse-battery-staple"
@@ -287,14 +287,33 @@ class TestCredentials:
         )
         assert rejected.status_code == 422
 
-    def test_a_non_https_redirect_uri_is_refused(self, client):
+    def test_a_redirect_uri_with_no_scheme_is_refused(self, client):
+        # What has to be caught is a value Fyers will not match, and the common typo is a relative
+        # or schemeless one. The scheme itself is not ours to police: loopback http is legitimate
+        # under RFC 8252 and is what is registered today, so refusing it would make a correctly
+        # registered URI unusable.
         sign_in(client)
 
-        response = save_credentials(client, redirect_uri="http://127.0.0.1:8000/fyers/callback")
+        response = save_credentials(client, redirect_uri="127.0.0.1:8000/fyers/callback")
 
         assert response.status_code == 400
         assert response.json()["error"]["code"] == broker_routes.CODE_INVALID_REDIRECT_URI
         assert DEFAULT_REDIRECT_URI in response.json()["error"]["message"]
+
+    @pytest.mark.parametrize(
+        "redirect_uri",
+        [
+            "http://127.0.0.1:8000/fyers/callback",
+            "https://127.0.0.1:8000/fyers/callback",
+        ],
+    )
+    def test_both_loopback_schemes_are_accepted(self, client, redirect_uri):
+        # Whichever one is registered on the Fyers dashboard has to be storable here.
+        sign_in(client)
+
+        response = save_credentials(client, redirect_uri=redirect_uri)
+
+        assert response.status_code == 200
 
     def test_an_app_id_that_carries_the_secret_is_refused(self, client):
         sign_in(client)

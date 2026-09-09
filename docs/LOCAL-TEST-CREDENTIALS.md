@@ -9,7 +9,7 @@ Format, three lines of KEY=VALUE:
 
     FYERS_API_KEY=<app id, shape XXXXXXXXX-100>
     FYERS_API_SECRET=<app secret>
-    REDIRECTION_URL=https://127.0.0.1:8000/fyers/callback
+    REDIRECTION_URL=http://127.0.0.1:8000/fyers/callback
 
 These are REAL credentials for a live broker account. Rules for every agent and every
 test:
@@ -26,7 +26,7 @@ test:
 ## The registered redirect URI drives three hard requirements
 
 The redirect URI is registered on the Fyers dashboard as
-`https://127.0.0.1:8000/fyers/callback`. Fyers matches it exactly, so the application has
+`http://127.0.0.1:8000/fyers/callback`. Fyers matches it exactly, so the application has
 no freedom here.
 
 1. The FastAPI backend must listen on 127.0.0.1 port 8000.

@@ -32,16 +32,31 @@ describe('vite dev server', () => {
     expect(config.server.strictPort).toBe(true)
   })
 
-  it('starts without the backend certificate instead of throwing', async () => {
+  it('serves plain http by default, matching the backend', async () => {
+    // The dev origin must use the same scheme as the backend. The backend serves http because the
+    // redirect URI registered with Fyers is http, and a Secure cookie is never sent over http, so
+    // a dev server on https against an http backend breaks the session rather than hardening it.
+    delete process.env.EXPIRYMANAGER_DEV_HTTPS
     const config = await resolveConfig('serve')
-    const https = config.server.https
-    const present = fs.existsSync(
-      path.join(process.env.HOME ?? '', '.expirymanager', 'tls', 'server.crt'),
-    )
-    if (present) {
-      expect(https).toHaveProperty('cert')
-    } else {
-      expect(https).toBeUndefined()
+    expect(config.server.https).toBeUndefined()
+  })
+
+  it('serves https only when explicitly opted in and the certificate exists', async () => {
+    process.env.EXPIRYMANAGER_DEV_HTTPS = '1'
+    try {
+      const config = await resolveConfig('serve')
+      const present = fs.existsSync(
+        path.join(process.env.HOME ?? '', '.expirymanager', 'tls', 'server.crt'),
+      )
+      if (present) {
+        expect(config.server.https).toHaveProperty('cert')
+      } else {
+        // A missing certificate degrades to http rather than throwing, so the dev server still
+        // starts on a machine where the backend has never run.
+        expect(config.server.https).toBeUndefined()
+      }
+    } finally {
+      delete process.env.EXPIRYMANAGER_DEV_HTTPS
     }
   })
 
@@ -53,7 +68,7 @@ describe('vite dev server', () => {
   it('proxies /api to the backend over https with verification off', async () => {
     const config = await resolveConfig('serve')
     const api = config.server.proxy['/api']
-    expect(api.target).toBe('https://127.0.0.1:8000')
+    expect(api.target).toBe('http://127.0.0.1:8000')
     // The Origin header has to survive to FastAPI, which checks it on unsafe methods.
     expect(api.changeOrigin).toBe(false)
     // The backend certificate is self-signed, and this is the only target it applies to.

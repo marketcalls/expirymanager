@@ -526,19 +526,29 @@ async def save_credentials(
     return await run_in_threadpool(read_broker_status, state)
 
 
+_ALLOWED_REDIRECT_SCHEMES = ("http://", "https://")
+
+
 def _validated_redirect_uri(value: str) -> str:
-    """Absolute https only, and the registered value by default.
+    """Absolute http or https, and the registered value by default.
 
     Fyers matches the redirect URI character for character against the registration, so a typo
     here does not fail at save time, it fails much later with an error that reads like a wrong app
-    id. Rejecting anything that is not an absolute https URL catches the common half of that.
+    id. Rejecting anything that is not an absolute URL catches the common half of that.
+
+    Both schemes are accepted because loopback is the one place http is legitimate: RFC 8252 allows
+    it for exactly this case, and a self-signed certificate on 127.0.0.1 adds no real protection.
+    Which one is correct here is not ours to decide, it is whatever is registered on the Fyers
+    dashboard, and rejecting http would make a legitimately registered URI unusable.
     """
     candidate = value.strip()
-    if not candidate.lower().startswith("https://") or len(candidate) <= len("https://"):
+    lowered = candidate.lower()
+    matched = next((s for s in _ALLOWED_REDIRECT_SCHEMES if lowered.startswith(s)), None)
+    if matched is None or len(candidate) <= len(matched):
         raise ApiError(
             400,
             CODE_INVALID_REDIRECT_URI,
-            "The redirect URL must be an absolute https URL. Use "
+            "The redirect URL must be an absolute http or https URL. Use "
             f"{DEFAULT_REDIRECT_URI}, which is the value registered on the Fyers dashboard.",
         )
     return candidate

@@ -22,6 +22,8 @@ load bearing and none of them are configurable.
 
 from __future__ import annotations
 
+from expirymanager import runtime_scheme
+
 import hashlib
 import hmac
 import logging
@@ -67,7 +69,9 @@ __all__ = [
 log = logging.getLogger(__name__)
 
 # Registered on the Fyers dashboard, matched character for character. Not a setting.
-DEFAULT_REDIRECT_URI = "https://127.0.0.1:8000/fyers/callback"
+# Follows the scheme the server serves. Only a fallback: the redirect URI the user registered
+# is stored with the credential and is what is actually sent to Fyers.
+DEFAULT_REDIRECT_URI = runtime_scheme.callback_url()
 
 RESPONSE_TYPE = "code"
 GRANT_TYPE_AUTHORIZATION_CODE = "authorization_code"

@@ -178,7 +178,7 @@ as well as a key leak path.
 
 ## 3a. Transport: self-signed TLS on 127.0.0.1:8000
 
-The Fyers app is registered with the redirect URI `https://127.0.0.1:8000/fyers/callback` and
+The Fyers app is registered with the redirect URI `http://127.0.0.1:8000/fyers/callback` and
 Fyers matches it exactly, so the server must speak https on that host, that port and that path.
 Because the project is zero configuration, it generates its own certificate rather than asking
 anyone to produce one.
@@ -249,7 +249,7 @@ id_hash = hashlib.sha256(raw.encode()).digest()    # only this is stored
 
 `Secure` is unconditionally true, in development as well as in production, because the server
 speaks https on 127.0.0.1:8000 in both. That is not a preference: the registered Fyers redirect
-URI is `https://127.0.0.1:8000/fyers/callback` and Fyers matches it exactly, so there is no http
+URI is `http://127.0.0.1:8000/fyers/callback` and Fyers matches it exactly, so there is no http
 mode to support.
 
 No `Domain=` attribute, so the cookies are host-only, which is what a loopback app wants. In
@@ -292,7 +292,7 @@ server: {
   },
   proxy: {
     '/api': {
-      target: 'https://127.0.0.1:8000',
+      target: 'http://127.0.0.1:8000',
       // Keep the browser Origin header intact so the backend Origin check stays meaningful.
       changeOrigin: false,
       // The backend certificate is self-signed and is the one this dev server also presents.
@@ -340,7 +340,7 @@ async def csrf_middleware(request, call_next):
     return await call_next(request)
 ```
 
-Allowed origins: `https://127.0.0.1:5173` in development, `https://127.0.0.1:8000` in production.
+Allowed origins: `http://127.0.0.1:5173` in development, `http://127.0.0.1:8000` in production.
 Because the Vite proxy carries `/api` on the dev origin itself, every API call is `same-origin`
 and never `same-site`, so the `Sec-Fetch-Site` layer is a real filter rather than a formality.
 
@@ -374,7 +374,7 @@ no protection at all. Host header validation is the only defence.
               &response_type=code&state=<state_raw>
 
 2  The user authenticates at Fyers and is redirected to
-     https://127.0.0.1:8000/fyers/callback?s=ok&code=200&auth_code=<...>&state=<state_raw>
+     http://127.0.0.1:8000/fyers/callback?s=ok&code=200&auth_code=<...>&state=<state_raw>
      Note the scheme, the port and the ROOT path. All three are fixed by the registration.
 
 3  GET /fyers/callback          (mounted at the root, outside the /api prefix)
@@ -409,7 +409,7 @@ Referer header and the uvicorn access log. Three mitigations are mandatory and a
 the 303 to a clean URL, `Referrer-Policy: no-referrer`, and a uvicorn access log filter that
 strips the query string for exactly that path.
 
-The redirect URI is `https://127.0.0.1:8000/fyers/callback`. Fyers does accept a loopback redirect
+The redirect URI is `http://127.0.0.1:8000/fyers/callback`. Fyers does accept a loopback redirect
 URI, confirmed by the developer's existing registration, but it must be https and it is matched
 exactly, so the app has no freedom over the scheme, the host, the port or the path. The setup
 wizard shows that exact string with a copy button so the value registered on the Fyers dashboard

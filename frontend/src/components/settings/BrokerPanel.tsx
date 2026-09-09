@@ -64,7 +64,7 @@ import { formatDateTime, formatLatency, formatRelative } from '@/lib/format'
 
 /** The one registered value. Must stay character identical to the backend's DEFAULT_REDIRECT_URI
  *  and to what is registered on the Fyers dashboard. */
-export const REDIRECT_URI = 'https://127.0.0.1:8000/fyers/callback'
+export const REDIRECT_URI = 'http://127.0.0.1:8000/fyers/callback'
 
 /** Where the certificate warning is expected, said the same way everywhere it is said. */
 export const CERTIFICATE_NOTE =

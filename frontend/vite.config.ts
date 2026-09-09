@@ -41,10 +41,18 @@ export default defineConfig(({ command }) => ({
     host: '127.0.0.1',
     port: 5173,
     strictPort: true,
-    https: command === 'serve' ? devHttps() : undefined,
+    // The backend serves plain HTTP by default, because the redirect URI registered with
+    // Fyers is http. The dev origin must use the SAME scheme as the backend: the session
+    // cookie set by the callback on :8000 is only sent from :5173 when both agree, and a
+    // Secure cookie is not sent over http at all. Set EXPIRYMANAGER_DEV_HTTPS=1 only when
+    // the backend is also started with --https.
+    https:
+      command === 'serve' && process.env.EXPIRYMANAGER_DEV_HTTPS === '1'
+        ? devHttps()
+        : undefined,
     proxy: {
       '/api': {
-        target: 'https://127.0.0.1:8000',
+        target: 'http://127.0.0.1:8000',
         // changeOrigin stays false so the browser Origin header survives to FastAPI, which
         // checks it on unsafe methods.
         changeOrigin: false,

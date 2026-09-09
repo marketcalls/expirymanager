@@ -92,7 +92,7 @@ export function BootstrapGate({ children }: BootstrapGateProps) {
         title="Cannot reach the backend"
         description={
           error?.isNetworkError
-            ? 'The ExpiryManager server is not answering on https://127.0.0.1:8000. Start it, accept the self signed certificate once, then retry.'
+            ? 'The ExpiryManager server is not answering on http://127.0.0.1:8000. Start it with "uv run expirymanager", then retry.'
             : (error?.message ?? 'The backend returned an unexpected response.')
         }
         action={

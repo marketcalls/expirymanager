@@ -91,7 +91,7 @@ class TestCheckRun:
         out = capsys.readouterr().out
         assert __version__ in out
         assert str(data_dir) in out
-        assert "self-signed" in out or "no certificate" in out
+        assert "self-signed" in out or "plain HTTP" in out
 
     def test_a_cloud_sync_root_is_refused_with_exit_code_one(
         self, tmp_path: Path, capsys
