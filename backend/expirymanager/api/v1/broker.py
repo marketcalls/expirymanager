@@ -266,7 +266,9 @@ def read_broker_status(state: AppState) -> BrokerStatusResponse:
     return response.model_copy(
         update={
             "connected": bool(broker.has_valid_token()),
-            "token_state": record.state,
+            # Evaluated on read. The stored column does not tick, so a token past its JWT exp
+            # would otherwise still show as active until the next scheduled sweep.
+            "token_state": record.effective_state(),
             "token_expires_at": record.access_expires_at,
             # Eight characters. Enough to tell two tokens apart, useless as a credential.
             "token_fingerprint": record.fingerprint[:8] or None,

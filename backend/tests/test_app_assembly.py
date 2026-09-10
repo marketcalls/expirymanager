@@ -230,12 +230,33 @@ class TestShutdown:
 # ---------------------------------------------------------------------------
 
 
+@pytest.fixture
+def bare_registry():
+    """Empty the component registry for one test, then put it back.
+
+    create_app now installs the pipeline, the job recovery step and the scheduler, which is what
+    makes the application actually work. These tests are about the registration MECHANISM rather
+    than about what production happens to register, so they need a registry they control. Without
+    this they assert against whatever the last create_app left behind, which is both order
+    dependent and a test of the wrong thing.
+    """
+    saved = dict(lifespan_module._component_factories)
+    lifespan_module._component_factories.clear()
+    try:
+        yield
+    finally:
+        lifespan_module._component_factories.clear()
+        lifespan_module._component_factories.update(saved)
+
+
 class TestRegistrationPoints:
-    def test_the_app_serves_with_every_slot_empty(self, client):
+    def test_the_app_serves_with_every_slot_empty(self, client, bare_registry):
+        # A slot with no factory must not stop the application starting. That is what let the
+        # phases ship in dependency order while later components did not exist yet.
         assert lifespan_module.registered_components() == ()
         assert client.get("/api/v1/bootstrap").status_code == 200
 
-    def test_a_registered_component_is_started_and_stopped_in_place(self, data_dir):
+    def test_a_registered_component_is_started_and_stopped_in_place(self, data_dir, bare_registry):
         events: list[str] = []
 
         class FakeSupervisor:
@@ -290,14 +311,33 @@ class TestRegistrationPoints:
         with pytest.raises(ValueError):
             lifespan_module.register_component("not_a_slot", lambda state: None)
 
-    def test_a_route_needing_the_pipeline_gets_the_documented_503(self, client, app):
+    def test_a_route_needing_the_pipeline_gets_the_documented_503_when_the_slot_is_empty(
+        self, client, app
+    ):
         from expirymanager.api.deps import get_supervisor
         from expirymanager.api.errors import ApiError
 
-        with pytest.raises(ApiError) as caught:
-            get_supervisor(app.state.services)
-        assert caught.value.status_code == 503
-        assert caught.value.code == "pipeline_stopped"
+        # Emptying the factory registry is not enough here: the lifespan has already run, so the
+        # supervisor is a live entry in state.components. What this test is about is a route
+        # reached while the pipeline is genuinely absent, so remove the started component itself
+        # and put it back afterwards.
+        components = app.state.services.components
+        removed = components.pop(lifespan_module.SLOT_PIPELINE_SUPERVISOR, None)
+        try:
+            with pytest.raises(ApiError) as caught:
+                get_supervisor(app.state.services)
+            assert caught.value.status_code == 503
+            assert caught.value.code == "pipeline_stopped"
+        finally:
+            if removed is not None:
+                components[lifespan_module.SLOT_PIPELINE_SUPERVISOR] = removed
+
+    def test_the_pipeline_dependency_resolves_once_the_component_is_present(self, client, app):
+        # The other half of the same contract, and the half that regressed: for a long time every
+        # slot was empty in production, so this dependency always raised and nothing noticed.
+        from expirymanager.api.deps import get_supervisor
+
+        assert get_supervisor(app.state.services) is not None
 
 
 # ---------------------------------------------------------------------------

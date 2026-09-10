@@ -392,8 +392,10 @@ class ScheduleRun(Base):
     __tablename__ = "schedule_run"
     __table_args__ = (
         CheckConstraint(
-            "outcome IN ('enqueued','skipped_disabled','skipped_holiday','skipped_needs_auth',"
-            "'skipped_blocked','skipped_budget','error')",
+            # 'completed' was added by migration 0005: four builtin schedules do real work
+            # without creating a job, and the 0002 vocabulary had no word for that.
+            "outcome IN ('enqueued','completed','skipped_disabled','skipped_holiday',"
+            "'skipped_needs_auth','skipped_blocked','skipped_budget','error')",
             name="ck_schedule_run_outcome",
         ),
         Index("idx_schedule_run", "schedule_id", text("fired_at DESC")),

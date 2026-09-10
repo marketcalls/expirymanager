@@ -129,10 +129,21 @@ def _schema_dump(engine) -> list[tuple[str, str, str]]:
 
 
 class TestMigrationDiscovery:
-    def test_four_migrations_are_discovered_in_order(self):
+    def test_migrations_are_discovered_contiguously_and_in_order(self):
+        # Derived from the directory rather than hardcoded. A count written into the test is a
+        # count that has to be edited every time a migration lands, which is churn that teaches
+        # nothing; what actually matters is that versions are contiguous, ordered and start at 1.
         found = migrate_module.discover_migrations()
-        assert [m.version for m in found] == [1, 2, 3, 4]
-        assert [m.name for m in found] == ["init", "pipeline", "reference", "underlyings"]
+        versions = [m.version for m in found]
+        assert versions == sorted(versions), "migrations are not in ascending order"
+        assert versions == list(range(1, len(versions) + 1)), f"non contiguous versions: {versions}"
+        assert [m.name for m in found][:5] == [
+            "init",
+            "pipeline",
+            "reference",
+            "underlyings",
+            "schedules",
+        ]
 
     def test_checksum_is_stable_across_calls(self):
         first = {m.version: m.checksum for m in migrate_module.discover_migrations()}
@@ -188,8 +199,9 @@ class TestFreshSchema:
     def test_every_index_exists(self, migrated):
         assert EXPECTED_INDEXES <= _index_names(migrated)
 
-    def test_schema_version_reaches_four(self, migrated):
-        assert migrate_module.current_version(migrated) == 4
+    def test_schema_version_reaches_the_newest_migration(self, migrated):
+        expected = max(m.version for m in migrate_module.discover_migrations())
+        assert migrate_module.current_version(migrated) == expected
 
     def test_task_columns_match_the_data_model(self, migrated):
         columns = {c["name"] for c in inspect(migrated).get_columns("task")}
@@ -286,11 +298,15 @@ class TestSeeds:
                 ).scalar_one()
                 == 30
             )
+            # 100, raised from 95 by migration 0006 once the live API settled whether the
+            # documented limit counts calendar or trading days. See docs/API-PROBES.md: a span of
+            # 100 answers 200 and 101 answers 422. The planner reads THIS column, not the constant
+            # in calendar.py, so the two disagreeing is what silently kept chunks at 95.
             assert (
                 connection.execute(
                     text("SELECT max_days_per_request FROM ref_resolution WHERE fyers_code='1'")
                 ).scalar_one()
-                == 95
+                == 100
             )
 
     def test_builtin_underlyings_are_seeded(self, migrated):
@@ -410,9 +426,10 @@ class TestFileModes:
 
 class TestIdempotency:
     def test_second_migrate_applies_nothing(self, engine):
+        expected = [m.version for m in migrate_module.discover_migrations()]
         first = migrate_module.migrate(engine)
         second = migrate_module.migrate(engine)
-        assert first == [1, 2, 3, 4]
+        assert first == expected
         assert second == []
 
     def test_schema_is_byte_identical_after_a_second_run(self, engine):
@@ -431,7 +448,8 @@ class TestIdempotency:
             )
             assert connection.execute(text("SELECT count(*) FROM settings")).scalar_one() == 19
             assert (
-                connection.execute(text("SELECT count(*) FROM schema_version")).scalar_one() == 4
+                connection.execute(text("SELECT count(*) FROM schema_version")).scalar_one()
+                == len(migrate_module.discover_migrations())
             )
 
     def test_ledger_records_a_checksum_per_migration(self, engine):

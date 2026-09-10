@@ -49,6 +49,7 @@ __all__ = [
     "TokenBroker",
     "NoCredentialsError",
     "decode_jwt_expiry",
+    "effective_token_state",
     "token_fingerprint",
 ]
 
@@ -75,6 +76,58 @@ class TokenState:
     EXPIRED = "expired"
     NEEDS_REAUTH = "needs_reauth"
     REVOKED = "revoked"
+
+
+# The stored `broker_token.state` values that time can move a token through, in the order it moves
+# them. Everything outside this tuple is a decision somebody made (needs_reauth, revoked) and the
+# clock is not allowed to overrule it.
+_TIME_DRIVEN_STATES: tuple[str, ...] = (
+    TokenState.ACTIVE,
+    TokenState.EXPIRING,
+    TokenState.EXPIRED,
+)
+
+
+def effective_token_state(
+    state: str,
+    access_expires_at: str | datetime | None,
+    *,
+    now: datetime | None = None,
+    margin_seconds: int = EXPIRY_MARGIN_SECONDS,
+) -> str:
+    """The state a stored token is actually in right now.
+
+    `broker_token.state` is a column, and a column does not tick. Before this existed, a token
+    stored as `active` still read as `active` hours after its JWT `exp` had passed, because the
+    only thing that ever recomputed it was the scheduled sweep. The state the UI renders was
+    therefore a lie for as long as the gap between the expiry and the next sweep, which is exactly
+    the window in which a user most needs to be told to log in again.
+
+    The rule is monotone: the clock may only move a token forward through active, expiring,
+    expired, never backwards. A row a human or a rejection put into `needs_reauth` or `revoked` is
+    returned untouched, and a row already marked `expired` is not resurrected by a stored expiry
+    that happens to be in the future.
+    """
+    current = str(state)
+    if current not in _TIME_DRIVEN_STATES or access_expires_at is None:
+        return current
+    moment = now or datetime.now(UTC)
+    expiry = (
+        access_expires_at
+        if isinstance(access_expires_at, datetime)
+        else datetime.fromisoformat(str(access_expires_at))
+    )
+    if expiry.tzinfo is None:
+        expiry = expiry.replace(tzinfo=UTC)
+    if moment.tzinfo is None:
+        moment = moment.replace(tzinfo=UTC)
+    if moment >= expiry:
+        by_clock = TokenState.EXPIRED
+    elif (expiry - moment).total_seconds() <= margin_seconds:
+        by_clock = TokenState.EXPIRING
+    else:
+        by_clock = TokenState.ACTIVE
+    return max(current, by_clock, key=_TIME_DRIVEN_STATES.index)
 
 
 class NoCredentialsError(Exception):
@@ -112,7 +165,23 @@ class TokenRecord:
 
     @property
     def is_usable(self) -> bool:
+        """Whether the stored column says this row is still a candidate.
+
+        Deliberately the column and not `effective_state`: this is the predicate the stores use
+        to decide which row to load, and a row that has aged out still has to be loadable so that
+        the reader can be told it expired. Whether the token can actually be spent is
+        `TokenBroker.has_valid_token`, which checks the clock.
+        """
         return self.state in (TokenState.ACTIVE, TokenState.EXPIRING)
+
+    def effective_state(self, now: datetime | None = None) -> str:
+        """The state including the passage of time, not merely what the column says.
+
+        Every reader should use this rather than `.state`. The column is only rewritten by a
+        login, a rejection or the scheduled sweep, so between an expiry and the next sweep the
+        column and the truth disagree.
+        """
+        return effective_token_state(self.state, self.access_expires_at, now=now)
 
 
 class CredentialStore(Protocol):
@@ -530,6 +599,17 @@ class TokenBroker:
     def record(self) -> TokenRecord | None:
         self._load()
         return self._record
+
+    def token_state(self, *, none_value: str = "none") -> str:
+        """The state to render, evaluated against the clock on every read.
+
+        The one entry point every status route should use. It answers `none_value` when no token
+        is stored at all, so the caller never has to decide what an absent row is called.
+        """
+        self._load()
+        if self._record is None:
+            return none_value
+        return self._record.effective_state(self._now())
 
     def has_valid_token(self) -> bool:
         """Whether a usable, unexpired token exists right now.

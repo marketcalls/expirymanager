@@ -71,8 +71,9 @@ def test_empty_directory_boots_to_a_complete_install(data_root: Path) -> None:
     engine = sqlite.create_engine(paths.sqlite_db)
     try:
         applied = migrate.migrate(engine)
-        assert applied == [1, 2, 3, 4], f"expected four migrations, applied {applied}"
-        assert migrate.current_version(engine) == 4
+        expected_versions = [m.version for m in migrate.discover_migrations()]
+        assert applied == expected_versions, f"expected {expected_versions}, applied {applied}"
+        assert migrate.current_version(engine) == max(expected_versions)
         assert paths.sqlite_db.stat().st_mode & 0o777 == 0o600
 
         pragmas = sqlite.read_pragmas(engine)

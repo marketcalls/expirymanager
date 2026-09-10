@@ -24,6 +24,7 @@ production, `https://127.0.0.1:8000`. Adding CORS would only widen what the CSRF
 
 from __future__ import annotations
 
+import importlib
 import logging
 from pathlib import Path
 from typing import Any
@@ -104,6 +105,62 @@ def _include_oauth_callback(app: FastAPI) -> bool:
     return True
 
 
+def _install_components() -> None:
+    """Register the pipeline, the job recovery step, the scheduler and the task handlers.
+
+    None of these register themselves at import time, deliberately: doing that as an import side
+    effect changes the behaviour of any test that merely imports the module, and it makes the set
+    of installed components depend on import order. So each exposes an explicit install(), and this
+    is the one place that calls them.
+
+    Without this the application still starts and every route answers, which is exactly what makes
+    the omission dangerous: the three lifespan slots stay empty, the worker registry stays empty,
+    api.deps.get_supervisor raises its documented 503, no schedule ever fires, and any leased task
+    fails with "no handler is registered for task kind". Nothing looks broken until a download is
+    started and silently does nothing.
+
+    Import failures are tolerated per component so a partially built tree still boots, which is how
+    this file behaved through the phases when these modules did not exist yet.
+    """
+    from expirymanager.lifespan import (
+        SLOT_JOB_RECOVERY,
+        SLOT_PIPELINE_SUPERVISOR,
+        SLOT_SCHEDULER,
+    )
+
+    components = (
+        ("expirymanager.pipeline.supervisor", "install", SLOT_PIPELINE_SUPERVISOR),
+        ("expirymanager.pipeline.jobs", "install", SLOT_JOB_RECOVERY),
+        ("expirymanager.scheduler.service", "install", SLOT_SCHEDULER),
+        # Not a lifespan slot: this one fills the worker handler registry.
+        ("expirymanager.pipeline.handlers.candle_chunk", "install_all", None),
+    )
+
+    from expirymanager.lifespan import registered_components
+
+    already = set(registered_components())
+
+    for module_name, function_name, slot in components:
+        # An explicit prior registration wins. A test that registers a fake supervisor and then
+        # builds an app must keep its fake, and building the app twice in one process must not
+        # replace a running component's factory underneath it.
+        if slot is not None and slot in already:
+            continue
+        try:
+            module = importlib.import_module(module_name)
+        except ImportError:
+            log.debug("component not built yet", extra={"component": module_name})
+            continue
+        installer = getattr(module, function_name, None)
+        if installer is None:
+            log.warning(
+                "component has no installer, slot stays empty",
+                extra={"component": module_name, "installer": function_name, "slot": slot},
+            )
+            continue
+        installer()
+
+
 def create_app(
     *,
     root: Path | str | None = None,
@@ -118,6 +175,7 @@ def create_app(
     is on disk, because a build being present is the honest signal that this process is the one
     serving the browser rather than Vite.
     """
+    _install_components()
     paths = paths_module.ensure(root, ensure_tls=False)
     state = AppState(paths=paths, environment=environment, app_version=__version__)
 

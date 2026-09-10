@@ -29,6 +29,7 @@ from typing import Any
 from sqlalchemy import Engine, text
 
 from expirymanager import paths as paths_module
+from expirymanager.brokers.fyers import tokens as tokens_module
 from expirymanager.db import migrate as migrate_module
 from expirymanager.security.kek import KeyFileKekProvider
 from expirymanager.security.keys import KeyManager, SqliteCryptoKeyStore
@@ -176,13 +177,17 @@ def read_status(
             record = None
 
     if record is not None:
-        token_state = record.state
+        # Evaluated against the clock rather than read off the column. The column is only
+        # rewritten by a login, a rejection or the 03:00 sweep, so reporting it verbatim made
+        # bootstrap answer "active" for hours after the token had actually expired.
+        token_state = record.effective_state()
         token_expires_at = record.access_expires_at
         broker_connected = bool(record.is_usable)
     elif has_credentials:
         row = _read_token_row(engine)
         if row is not None:
-            token_state, token_expires_at = row
+            stored_state, token_expires_at = row
+            token_state = tokens_module.effective_token_state(stored_state, token_expires_at)
 
     if token_broker is not None and broker_connected:
         # A record can be marked active and still be past its JWT exp, which is what the broker
